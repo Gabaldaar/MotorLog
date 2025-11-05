@@ -52,13 +52,14 @@ const estimateFuelStopFlow = ai.defineFlow(
 
     // Calculate estimated refuel date
     const now = new Date();
-    // Assuming a consumption rate of 1 km per day for now, this should be replaced with a user defined value
-    // otherwise the AI could estimate a daily average by tracking the user's distance travelled daily
-    const dailyKmTravelAvg = 50; // Using a more realistic average
+    // A realistic daily average travel distance is used for the estimation.
+    // This could be made a user-configurable preference in the future.
+    const dailyKmTravelAvg = 50; 
     const daysToEmpty = estimatedDistanceToEmptyKm / dailyKmTravelAvg;
     const estimatedRefuelDate = new Date(now.setDate(now.getDate() + daysToEmpty)).toISOString();
 
-    // Return the calculated values directly, removing the unnecessary AI call.
+    // Return the calculated values directly. This flow performs a direct calculation
+    // and does not make a call to a generative AI model.
     return {
       estimatedDistanceToEmptyKm,
       estimatedRefuelDate,
