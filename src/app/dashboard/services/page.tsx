@@ -117,24 +117,31 @@ export default function ServicesPage() {
                             <p className="text-muted-foreground mt-1">{reminder.notes}</p>
                             
                              {reminder.isCompleted ? (
-                                <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 mt-3">
-                                  {reminder.completedDate && (
-                                     <span className='flex items-center gap-1.5'>
-                                        <Calendar className="h-4 w-4" />
-                                        Completado el {formatDate(reminder.completedDate)}
-                                    </span>
-                                  )}
-                                  {reminder.completedOdometer && (
-                                     <span className='flex items-center gap-1.5'>
-                                        <Gauge className="h-4 w-4" />
-                                        a los {reminder.completedOdometer.toLocaleString()} km
-                                    </span>
-                                  )}
-                                  {reminder.serviceLocation && (
-                                     <span className='flex items-center gap-1.5'>
-                                        <Wrench className="h-4 w-4" />
-                                        en {reminder.serviceLocation}
-                                    </span>
+                                <div className="text-sm text-muted-foreground flex flex-col items-start gap-y-2 mt-3">
+                                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                                    {reminder.completedDate && (
+                                      <span className='flex items-center gap-1.5'>
+                                          <Calendar className="h-4 w-4" />
+                                          Completado el {formatDate(reminder.completedDate)}
+                                      </span>
+                                    )}
+                                    {reminder.completedOdometer && (
+                                      <span className='flex items-center gap-1.5'>
+                                          <Gauge className="h-4 w-4" />
+                                          a los {reminder.completedOdometer.toLocaleString()} km
+                                      </span>
+                                    )}
+                                    {reminder.serviceLocation && (
+                                      <span className='flex items-center gap-1.5'>
+                                          <Wrench className="h-4 w-4" />
+                                          en {reminder.serviceLocation}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {reminder.dueOdometer && (
+                                    <p className="text-xs italic mt-1">
+                                      (Programado originalmente para los {reminder.dueOdometer.toLocaleString()} km)
+                                    </p>
                                   )}
                                 </div>
                             ) : (
@@ -165,16 +172,14 @@ export default function ServicesPage() {
                         </div>
                         <div className='flex items-center gap-2'>
                               {!reminder.isCompleted && (
-                                <>
                                   <CompleteServiceDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer} />
-                                  <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder}>
-                                      <Button variant="outline" size="icon">
-                                          <Edit className="h-4 w-4" />
-                                          <span className="sr-only">Editar</span>
-                                      </Button>
-                                  </AddServiceReminderDialog>
-                                </>
                               )}
+                              <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder}>
+                                  <Button variant="outline" size="icon">
+                                      <Edit className="h-4 w-4" />
+                                      <span className="sr-only">Editar</span>
+                                  </Button>
+                              </AddServiceReminderDialog>
                              <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id} />
                         </div>
                     </div>

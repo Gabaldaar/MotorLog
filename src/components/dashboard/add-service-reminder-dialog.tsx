@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -76,14 +76,20 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      serviceType: reminder?.serviceType || '',
-      notes: reminder?.notes || '',
-      dueDate: reminder?.dueDate ? new Date(reminder.dueDate) : undefined,
-      dueOdometer: reminder?.dueOdometer || undefined,
-      isUrgent: reminder?.isUrgent || false,
-    },
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        serviceType: reminder?.serviceType || '',
+        notes: reminder?.notes || '',
+        dueDate: reminder?.dueDate ? new Date(reminder.dueDate) : undefined,
+        dueOdometer: reminder?.dueOdometer || undefined,
+        isUrgent: reminder?.isUrgent || false,
+      });
+    }
+  }, [open, reminder, form]);
+
 
   async function onSubmit(values: FormValues) {
     if (!user) {
