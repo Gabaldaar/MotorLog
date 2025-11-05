@@ -21,20 +21,15 @@ service cloud.firestore {
     
     // Allow any authenticated user to manage vehicles and their sub-collections.
     match /vehicles/{vehicleId} {
-      // Any signed-in user can get, create, update, or delete a vehicle document.
-      allow get, create, update, delete: if isSignedIn();
-      // Allow list for all authenticated users to see all vehicles.
-      allow list: if isSignedIn();
+      // Any signed-in user can read and write vehicle documents and their subcollections.
+      allow read, write: if isSignedIn();
 
+      // Explicitly allow read/write on subcollections as well for clarity and ensuring permission propagation
       match /fuel_records/{fuelRecordId} {
-        // Any signed-in user can perform any action on fuel records.
-        // 'read' and 'write' are shorthand for get, list and create, update, delete.
         allow read, write: if isSignedIn();
       }
 
       match /service_reminders/{serviceReminderId} {
-        // Any signed-in user can perform any action on service reminders.
-        // 'read' and 'write' are shorthand for get, list and create, update, delete.
         allow read, write: if isSignedIn();
       }
     }
