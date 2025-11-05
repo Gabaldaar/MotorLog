@@ -31,17 +31,16 @@ export type ServiceReminder = {
   id: string;
   vehicleId: string;
   serviceType: string;
-  dueDate?: string; // ISO date string
-  dueOdometer?: number;
+  dueDate: string | null;
+  dueOdometer: number | null;
   notes: string;
-  isUrgent: boolean;
   isCompleted: boolean;
-  completedDate?: string;
-  completedOdometer?: number;
-  serviceLocation?: string;
-  cost?: number;
-  isRecurring?: boolean;
-  recurrenceIntervalKm?: number;
+  completedDate: string | null;
+  completedOdometer: number | null;
+  serviceLocation: string | null;
+  cost: number | null;
+  isRecurring?: boolean | null;
+  recurrenceIntervalKm?: number | null;
 };
 
 export type ProcessedFuelLog = FuelLog & {
@@ -59,3 +58,5 @@ export type ConfigItem = {
   id: string;
   name: string;
 };
+
+    

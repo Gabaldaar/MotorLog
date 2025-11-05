@@ -145,22 +145,22 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     const reminderId = isEditing ? reminder.id : doc(collection(firestore, '_')).id;
     const reminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', reminderId);
     
-    const reminderData: ServiceReminder = {
+    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; } = {
       id: reminderId,
       vehicleId,
       serviceType: values.serviceType,
       notes: values.notes || '',
-      dueDate: values.dueDate?.toISOString() || null,
       dueOdometer: values.dueOdometer || null,
       isCompleted: values.isCompleted,
       isRecurring: values.isRecurring,
       recurrenceIntervalKm: values.isRecurring ? values.recurrenceIntervalKm : null,
       // Completion data
-      completedDate: values.isCompleted ? values.completedDate?.toISOString() : null,
       completedOdometer: values.isCompleted ? values.completedOdometer : null,
       serviceLocation: values.isCompleted ? values.serviceLocation : null,
       cost: values.isCompleted ? values.cost : null,
-      isUrgent: false, // This is deprecated in favor of calculated urgency
+      // Date conversions
+      dueDate: values.dueDate ? values.dueDate.toISOString() : null,
+      completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null
     };
 
     setDocumentNonBlocking(reminderRef, reminderData, { merge: true });
@@ -170,7 +170,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       const nextReminderId = doc(collection(firestore, '_')).id;
       const nextDueOdometer = values.completedOdometer + values.recurrenceIntervalKm;
 
-      const nextReminderData: ServiceReminder = {
+      const nextReminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; } = {
         id: nextReminderId,
         vehicleId,
         serviceType: values.serviceType,
@@ -180,16 +180,16 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
         isRecurring: true,
         recurrenceIntervalKm: values.recurrenceIntervalKm,
         // Reset completion fields
-        dueDate: null,
-        completedDate: null,
         completedOdometer: null,
         serviceLocation: null,
         cost: null,
-        isUrgent: false,
+        // Date conversions
+        dueDate: null,
+        completedDate: null,
       };
       
       const nextReminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', nextReminderId);
-      addDocumentNonBlocking(nextReminderRef, nextReminderData);
+      setDocumentNonBlocking(nextReminderRef, nextReminderData, { merge: true });
 
       toast({
         title: '¡Servicio Recurrente!',
@@ -442,3 +442,5 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     </Dialog>
   );
 }
+
+    
