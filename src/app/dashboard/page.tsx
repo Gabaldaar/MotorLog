@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense } from 'react';
@@ -27,7 +28,8 @@ function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumption
     
     const distanceTraveled = log.odometer - prevLog.odometer;
     // Calculate consumption only if the previous log was a fill-up
-    const consumption = prevLog.isFillUp && distanceTraveled > 0 && log.liters > 0 
+    // and the current log is NOT marked as having a missed previous fill-up.
+    const consumption = prevLog.isFillUp && !log.missedPreviousFillUp && distanceTraveled > 0 && log.liters > 0 
       ? distanceTraveled / log.liters 
       : 0;
     

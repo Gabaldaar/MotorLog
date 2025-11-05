@@ -113,6 +113,10 @@
         "gasStation": {
           "type": "string",
           "description": "Name of the gas station where the fuel was purchased."
+        },
+        "missedPreviousFillUp": {
+          "type": "boolean",
+          "description": "Indicates if the user forgot to log the previous fill-up, invalidating consumption calculation for this entry."
         }
       },
       "required": [

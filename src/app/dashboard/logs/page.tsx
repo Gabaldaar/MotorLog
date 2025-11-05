@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ProcessedFuelLog } from '@/lib/types';
@@ -36,8 +37,10 @@ function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
     const prevLog = sortedLogsAsc[index - 1];
     
     const distanceTraveled = log.odometer - prevLog.odometer;
+    
     // Only calculate consumption if the previous log was a fill-up
-    if (prevLog && prevLog.isFillUp) {
+    // and the current log is NOT marked as having a missed previous fill-up.
+    if (prevLog && prevLog.isFillUp && !log.missedPreviousFillUp) {
       const consumption = distanceTraveled > 0 && log.liters > 0 ? distanceTraveled / log.liters : 0;
       return {
         ...log,

@@ -25,6 +25,7 @@ export type FuelLog = {
   gasStation: string;
   isFillUp: boolean;
   username: string;
+  missedPreviousFillUp?: boolean;
 };
 
 export type ServiceReminder = {

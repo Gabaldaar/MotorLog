@@ -59,6 +59,7 @@ const formSchema = z.object({
   }),
   isFillUp: z.boolean().default(true),
   gasStation: z.string().optional(),
+  missedPreviousFillUp: z.boolean().default(false),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -115,6 +116,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
       fuelType: vehicle?.defaultFuelType,
       isFillUp: true,
       gasStation: '',
+      missedPreviousFillUp: false,
     },
   });
 
@@ -131,6 +133,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
       fuelType: (isEditing && fuelLog?.fuelType) || vehicle?.defaultFuelType,
       isFillUp: isEditing ? (fuelLog.isFillUp !== undefined ? fuelLog.isFillUp : true) : true,
       gasStation: isEditing && fuelLog ? fuelLog.gasStation : '',
+      missedPreviousFillUp: (isEditing && fuelLog?.missedPreviousFillUp) || false,
     };
     form.reset(defaultVals);
   }, [fuelLog, isEditing, form, open, vehicle]);
@@ -397,6 +400,27 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="missedPreviousFillUp"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>¿Omitiste un repostaje anterior?</FormLabel>
+                    <FormDescription>
+                      Esto invalidará el cálculo de consumo para este registro.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
            
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting} className="w-full">
@@ -410,5 +434,3 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     </Dialog>
   );
 }
-
-    
