@@ -228,7 +228,7 @@ export default function ServicesPage() {
                               </div>
                             )}
                         </div>
-                        <div className='flex flex-row sm:flex-col items-center gap-2'>
+                        <div className='flex flex-row items-center gap-2 sm:flex-col'>
                               <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer}>
                                   <Button variant="outline" size="icon">
                                       <Edit className="h-4 w-4" />

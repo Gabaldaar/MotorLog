@@ -220,7 +220,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-headline">{isEditing ? 'Editar' : 'Nuevo'} Recordatorio de Servicio</DialogTitle>
           <DialogDescription>
@@ -254,7 +254,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="dueDate"
@@ -365,7 +365,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
 
                   {isCompleted && (
                     <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="completedOdometer"
