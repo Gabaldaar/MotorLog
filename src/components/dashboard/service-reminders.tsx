@@ -6,13 +6,13 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { ServiceReminder } from '@/lib/types';
+import type { ProcessedServiceReminder } from '@/lib/types';
 import { Wrench, Calendar, Gauge } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 
 interface ServiceRemindersProps {
-  data: ServiceReminder[];
+  data: ProcessedServiceReminder[];
 }
 
 export default function ServiceReminders({ data }: ServiceRemindersProps) {
@@ -34,7 +34,10 @@ export default function ServiceReminders({ data }: ServiceRemindersProps) {
                   <div className="flex-1">
                     <div className="flex justify-between items-center">
                       <p className="font-semibold">{reminder.serviceType}</p>
-                      {reminder.isUrgent && <Badge variant="destructive">Urgente</Badge>}
+                       <div className="flex items-center gap-2">
+                        {reminder.isOverdue && <Badge variant="destructive">Vencido</Badge>}
+                        {reminder.isUrgent && <Badge className="bg-amber-500 hover:bg-amber-500/80 text-white">Urgente</Badge>}
+                      </div>
                     </div>
                     <div className="text-sm text-muted-foreground flex items-center gap-4 mt-1">
                       {reminder.dueDate && (

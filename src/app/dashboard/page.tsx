@@ -2,7 +2,7 @@
 'use client';
 
 import { Suspense } from 'react';
-import type { ProcessedFuelLog, ServiceReminder } from '@/lib/types';
+import type { ProcessedFuelLog, ServiceReminder, ProcessedServiceReminder } from '@/lib/types';
 import WelcomeBanner from '@/components/dashboard/welcome-banner';
 import StatCard from '@/components/dashboard/stat-card';
 import FuelConsumptionChart from '@/components/dashboard/fuel-consumption-chart';
@@ -14,6 +14,7 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
+import { differenceInDays } from 'date-fns';
 
 function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
   const sortedLogs = logs
@@ -53,7 +54,7 @@ export default function DashboardPage() {
   const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
-  const { consumptionUnit, getFormattedConsumption } = usePreferences();
+  const { consumptionUnit, getFormattedConsumption, urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
 
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -99,14 +100,26 @@ export default function DashboardPage() {
 
   const { processedLogs: vehicleFuelLogs, avgConsumption } = processFuelLogs(fuelLogs || [], vehicle);
   const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
-  const vehicleServiceReminders = serviceReminders || [];
   
   const totalSpent = vehicleFuelLogs.reduce((acc, log) => acc + log.totalCost, 0);
   const totalLiters = vehicleFuelLogs.reduce((acc, log) => acc + log.liters, 0);
 
   const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
   
-  const pendingReminders = vehicleServiceReminders.filter(r => !r.isCompleted);
+  const pendingReminders: ProcessedServiceReminder[] = (serviceReminders || [])
+    .filter(r => !r.isCompleted)
+    .map(r => {
+        const kmsRemaining = r.dueOdometer ? r.dueOdometer - lastOdometer : null;
+        const daysRemaining = r.dueDate ? differenceInDays(new Date(r.dueDate), new Date()) : null;
+        
+        const isOverdue = (kmsRemaining !== null && kmsRemaining < 0) || (daysRemaining !== null && daysRemaining < 0);
+        const isUrgent = !isOverdue && (
+            (kmsRemaining !== null && kmsRemaining <= urgencyThresholdKm) || 
+            (daysRemaining !== null && daysRemaining <= urgencyThresholdDays)
+        );
+
+        return { ...r, isOverdue, isUrgent };
+    });
 
   const sortedPendingReminders = [...pendingReminders].sort((a, b) => {
     const aUrgency = a.dueOdometer ? a.dueOdometer - lastOdometer : Infinity;

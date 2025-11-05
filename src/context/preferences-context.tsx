@@ -8,26 +8,77 @@ interface PreferencesContextType {
   setConsumptionUnit: (unit: ConsumptionUnit) => void;
   getConsumptionValue: (kmPerLiter?: number | null) => number;
   getFormattedConsumption: (kmPerLiter?: number | null) => string;
+  urgencyThresholdDays: number;
+  setUrgencyThresholdDays: (days: number) => void;
+  urgencyThresholdKm: number;
+  setUrgencyThresholdKm: (km: number) => void;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
 
 const isClient = typeof window !== 'undefined';
 
+const getItemFromStorage = <T,>(key: string, defaultValue: T): T => {
+    if (!isClient) return defaultValue;
+    try {
+        const item = localStorage.getItem(key);
+        if (item) {
+            const parsedItem = JSON.parse(item);
+            // Ensure the type matches, especially for numbers
+            if (typeof parsedItem === typeof defaultValue) {
+                return parsedItem;
+            }
+        }
+        return defaultValue;
+    } catch (error) {
+        console.error(`Error reading from localStorage key “${key}”:`, error);
+        return defaultValue;
+    }
+};
+
+const setItemInStorage = <T,>(key: string, value: T) => {
+    if (!isClient) return;
+    try {
+        localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        console.error(`Error setting localStorage key “${key}”:`, error);
+    }
+}
+
+
 export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
-  const [consumptionUnit, setConsumptionUnitState] = useState<ConsumptionUnit>(() => {
-    if (!isClient) return 'km/L';
-    return (localStorage.getItem('consumptionUnit') as ConsumptionUnit) || 'km/L';
-  });
+  const [consumptionUnit, setConsumptionUnitState] = useState<ConsumptionUnit>(() => 
+    getItemFromStorage('consumptionUnit', 'km/L')
+  );
+  const [urgencyThresholdDays, setUrgencyThresholdDaysState] = useState<number>(() => 
+    getItemFromStorage('urgencyThresholdDays', 15)
+  );
+  const [urgencyThresholdKm, setUrgencyThresholdKmState] = useState<number>(() => 
+    getItemFromStorage('urgencyThresholdKm', 1000)
+  );
 
   useEffect(() => {
-    if (isClient) {
-      localStorage.setItem('consumptionUnit', consumptionUnit);
-    }
+    setItemInStorage('consumptionUnit', consumptionUnit);
   }, [consumptionUnit]);
+
+  useEffect(() => {
+    setItemInStorage('urgencyThresholdDays', urgencyThresholdDays);
+  }, [urgencyThresholdDays]);
+
+  useEffect(() => {
+    setItemInStorage('urgencyThresholdKm', urgencyThresholdKm);
+  }, [urgencyThresholdKm]);
 
   const setConsumptionUnit = (unit: ConsumptionUnit) => {
     setConsumptionUnitState(unit);
+  };
+
+  const setUrgencyThresholdDays = (days: number) => {
+    setUrgencyThresholdDaysState(days);
+  };
+
+  const setUrgencyThresholdKm = (km: number) => {
+    setUrgencyThresholdKmState(km);
   };
 
   const getConsumptionValue = useCallback((kmPerLiter?: number | null): number => {
@@ -46,7 +97,18 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   }, [getConsumptionValue]);
 
   return (
-    <PreferencesContext.Provider value={{ consumptionUnit, setConsumptionUnit, getConsumptionValue, getFormattedConsumption }}>
+    <PreferencesContext.Provider 
+      value={{ 
+        consumptionUnit, 
+        setConsumptionUnit, 
+        getConsumptionValue, 
+        getFormattedConsumption,
+        urgencyThresholdDays,
+        setUrgencyThresholdDays,
+        urgencyThresholdKm,
+        setUrgencyThresholdKm,
+      }}
+    >
       {children}
     </PreferencesContext.Provider>
   );

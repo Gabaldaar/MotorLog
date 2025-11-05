@@ -5,20 +5,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import type { ConsumptionUnit } from '@/lib/types';
+import { Separator } from '../ui/separator';
+import { Input } from '../ui/input';
 
 export default function PreferencesSettings() {
-  const { consumptionUnit, setConsumptionUnit } = usePreferences();
+  const { 
+    consumptionUnit, 
+    setConsumptionUnit,
+    urgencyThresholdDays,
+    setUrgencyThresholdDays,
+    urgencyThresholdKm,
+    setUrgencyThresholdKm,
+  } = usePreferences();
 
   return (
     <Card className="mt-4">
       <CardHeader>
         <CardTitle>Preferencias de Visualización</CardTitle>
         <CardDescription>
-          Elige cómo quieres ver los datos en la aplicación.
+          Elige cómo quieres ver los datos y recibir alertas en la aplicación.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div>
             <Label className="text-base">Unidad de Consumo</Label>
             <p className="text-sm text-muted-foreground mb-2">
@@ -46,6 +55,43 @@ export default function PreferencesSettings() {
                  <span className="text-xs text-muted-foreground">Litros cada 100 Km</span>
               </Label>
             </RadioGroup>
+          </div>
+          
+          <Separator />
+
+          <div>
+            <Label className="text-base">Umbrales de Alerta de Servicio</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configura cuándo un servicio se considera "urgente".
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <Label htmlFor="threshold-km">Kilómetros antes</Label>
+                    <Input 
+                        id="threshold-km"
+                        type="number"
+                        value={urgencyThresholdKm}
+                        onChange={(e) => setUrgencyThresholdKm(Number(e.target.value))}
+                        placeholder="Ej: 1000"
+                    />
+                     <p className="text-xs text-muted-foreground mt-1">
+                        Avisar cuando falten menos de estos km.
+                    </p>
+                </div>
+                 <div>
+                    <Label htmlFor="threshold-days">Días antes</Label>
+                    <Input 
+                        id="threshold-days"
+                        type="number"
+                        value={urgencyThresholdDays}
+                        onChange={(e) => setUrgencyThresholdDays(Number(e.target.value))}
+                        placeholder="Ej: 15"
+                    />
+                     <p className="text-xs text-muted-foreground mt-1">
+                        Avisar cuando falten menos de estos días.
+                    </p>
+                </div>
+            </div>
           </div>
         </div>
       </CardContent>

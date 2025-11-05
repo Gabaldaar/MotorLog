@@ -50,6 +50,13 @@ export type ProcessedFuelLog = FuelLog & {
   consumption?: number; // km/L
 };
 
+// This type is for client-side processing only
+export type ProcessedServiceReminder = ServiceReminder & {
+    isUrgent?: boolean;
+    isOverdue?: boolean;
+};
+
+
 export type User = {
   id: string;
   email: string;

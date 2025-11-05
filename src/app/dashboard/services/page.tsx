@@ -14,11 +14,15 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
 import { cn } from '@/lib/utils';
+import { usePreferences } from '@/context/preferences-context';
+import { differenceInDays } from 'date-fns';
 
 export default function ServicesPage() {
   const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
+  const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
+
 
   const remindersQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -46,18 +50,39 @@ export default function ServicesPage() {
 
   const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
   
-  const sortedReminders = [...(reminders || [])].sort((a, b) => {
+  const getKmsRemaining = (dueOdometer: number | null) => {
+    if (!lastOdometer || !dueOdometer) return null;
+    return dueOdometer - lastOdometer;
+  }
+
+  const getDaysRemaining = (dueDate: string | null) => {
+    if (!dueDate) return null;
+    return differenceInDays(new Date(dueDate), new Date());
+  }
+  
+  const sortedReminders = [...(reminders || [])].map(r => {
+    const kmsRemaining = getKmsRemaining(r.dueOdometer);
+    const daysRemaining = getDaysRemaining(r.dueDate);
+    
+    const isOverdue = (kmsRemaining !== null && kmsRemaining < 0) || (daysRemaining !== null && daysRemaining < 0);
+    const isUrgent = !isOverdue && (
+        (kmsRemaining !== null && kmsRemaining <= urgencyThresholdKm) || 
+        (daysRemaining !== null && daysRemaining <= urgencyThresholdDays)
+    );
+
+    return {...r, kmsRemaining, daysRemaining, isOverdue, isUrgent };
+  }).sort((a, b) => {
     if (a.isCompleted && !b.isCompleted) return 1;
     if (!a.isCompleted && b.isCompleted) return -1;
     
     // Both are pending
     if (!a.isCompleted && !b.isCompleted) {
+      if (a.isOverdue && !b.isOverdue) return -1;
+      if (!a.isOverdue && b.isOverdue) return 1;
+
       const aUrgency = a.dueOdometer ? a.dueOdometer - lastOdometer : Infinity;
       const bUrgency = b.dueOdometer ? b.dueOdometer - lastOdometer : Infinity;
       
-      if (aUrgency < 0 && bUrgency >= 0) return -1;
-      if (bUrgency < 0 && aUrgency >= 0) return 1;
-
       if (a.dueOdometer && b.dueOdometer) return aUrgency - bUrgency;
       
       const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
@@ -71,11 +96,6 @@ export default function ServicesPage() {
     return bDate - aDate;
   });
   
-  const getKmsRemaining = (dueOdometer: number) => {
-    if (!lastOdometer || !dueOdometer) return null;
-    return dueOdometer - lastOdometer;
-  }
-
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -98,18 +118,22 @@ export default function ServicesPage() {
                     <p className="mt-4 text-muted-foreground">Cargando recordatorios...</p>
                 </div>
             ) : sortedReminders.length > 0 ? (
-                sortedReminders.map((reminder: ServiceReminder) => {
-                  const kmsRemaining = reminder.dueOdometer ? getKmsRemaining(reminder.dueOdometer) : null;
+                sortedReminders.map((reminder) => {
                   return (
                     <div key={reminder.id} className={cn("flex items-start gap-4 rounded-lg border p-4 transition-colors", {
                       "bg-muted/30": reminder.isCompleted,
-                      "border-destructive/50 bg-destructive/5": !reminder.isCompleted && kmsRemaining !== null && kmsRemaining < 0,
+                      "border-destructive/50 bg-destructive/10": !reminder.isCompleted && reminder.isOverdue,
+                      "border-amber-500/50 bg-amber-500/10": !reminder.isCompleted && reminder.isUrgent,
                     })}>
                         <div className="flex-shrink-0 pt-1">
                             {reminder.isCompleted ? (
                               <CheckCircle2 className="h-6 w-6 text-green-600" />
                             ) : (
-                              <Wrench className="h-6 w-6 text-muted-foreground" />
+                              <Wrench className={cn("h-6 w-6", {
+                                  "text-destructive": reminder.isOverdue,
+                                  "text-amber-600": reminder.isUrgent,
+                                  "text-muted-foreground": !reminder.isOverdue && !reminder.isUrgent
+                              })} />
                             )}
                         </div>
                         <div className={cn("flex-1 grid gap-y-2", { "opacity-60": reminder.isCompleted })}>
@@ -118,6 +142,8 @@ export default function ServicesPage() {
                                   {reminder.serviceType}
                                 </p>
                                 <div className="flex items-center gap-2 flex-shrink-0">
+                                  {!reminder.isCompleted && reminder.isOverdue && <Badge variant="destructive">Vencido</Badge>}
+                                  {!reminder.isCompleted && reminder.isUrgent && <Badge className="bg-amber-500 hover:bg-amber-500/80 text-white">Urgente</Badge>}
                                   {reminder.isRecurring && !reminder.isCompleted && <Badge variant="outline" className="flex items-center gap-1"><Repeat className="h-3 w-3"/> Recurrente</Badge>}
                                 </div>
                             </div>
@@ -174,15 +200,20 @@ export default function ServicesPage() {
                                       {reminder.dueOdometer.toLocaleString()} km
                                   </span>
                                   )}
-                                  {kmsRemaining !== null && (
+                                  {(reminder.isOverdue || reminder.isUrgent) && (
                                     <span className={cn('flex items-center gap-1.5 font-medium', {
-                                      'text-destructive': kmsRemaining < 0,
-                                      'text-amber-600': kmsRemaining >= 0 && kmsRemaining < 1000,
+                                      'text-destructive': reminder.isOverdue,
+                                      'text-amber-600': reminder.isUrgent,
                                     })}>
                                       <AlertTriangle className="h-4 w-4" />
-                                      {kmsRemaining < 0 
-                                        ? `Vencido hace ${Math.abs(kmsRemaining).toLocaleString()} km`
-                                        : `Faltan ${kmsRemaining.toLocaleString()} km`
+                                      {reminder.kmsRemaining !== null && reminder.kmsRemaining < 0 
+                                        ? `Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km`
+                                        : reminder.kmsRemaining !== null ? `Faltan ${reminder.kmsRemaining.toLocaleString()} km` : ''
+                                      }
+                                      {reminder.kmsRemaining !== null && reminder.daysRemaining !== null ? ' / ' : ''}
+                                       {reminder.daysRemaining !== null && reminder.daysRemaining < 0 
+                                        ? `Vencido hace ${Math.abs(reminder.daysRemaining)} días`
+                                        : reminder.daysRemaining !== null ? `Faltan ${reminder.daysRemaining} días` : ''
                                       }
                                     </span>
                                   )}
@@ -196,12 +227,7 @@ export default function ServicesPage() {
                                       <span className="sr-only">Editar</span>
                                   </Button>
                               </AddServiceReminderDialog>
-                             <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id}>
-                                <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Eliminar</span>
-                                </Button>
-                             </DeleteServiceReminderDialog>
+                             <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id} />
                         </div>
                     </div>
                   )
