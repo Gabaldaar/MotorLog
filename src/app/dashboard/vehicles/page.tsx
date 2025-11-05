@@ -4,7 +4,8 @@ import { vehicles } from '@/lib/data';
 import type { Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Car, Fuel, Gauge } from 'lucide-react';
+import { Car, Fuel, Gauge } from 'lucide-react';
+import AddVehicleDialog from '@/components/dashboard/add-vehicle-dialog';
 
 export const metadata: Metadata = {
   title: 'Mis Vehículos - FuelWise',
@@ -16,10 +17,7 @@ export default function VehiclesPage() {
     <div>
         <div className='flex items-center justify-between mb-6'>
             <h1 className='text-3xl font-headline'>Mis Vehículos</h1>
-            <Button>
-                <Plus className='-ml-1 mr-2 h-4 w-4' />
-                Añadir Vehículo
-            </Button>
+            <AddVehicleDialog />
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {vehicles.map((vehicle: Vehicle) => (
@@ -52,10 +50,12 @@ export default function VehiclesPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <Button variant="outline" className="w-full">
-                            <Car className='mr-2' />
-                            Gestionar Vehículo
-                        </Button>
+                        <AddVehicleDialog vehicle={vehicle}>
+                            <Button variant="outline" className="w-full">
+                                <Car className='mr-2' />
+                                Gestionar Vehículo
+                            </Button>
+                        </AddVehicleDialog>
                     </CardFooter>
                 </Card>
             ))}
