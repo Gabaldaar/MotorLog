@@ -57,10 +57,10 @@ export default function AddVehicleDialog({ vehicle, children, onVehicleUpdate }:
     defaultValues: {
       make: vehicle?.make || '',
       model: vehicle?.model || '',
-      year: vehicle?.year || undefined,
+      year: vehicle?.year || '',
       plate: vehicle?.plate || '',
-      fuelCapacityLiters: vehicle?.fuelCapacityLiters || undefined,
-      averageConsumptionKmPerLiter: vehicle?.averageConsumptionKmPerLiter || undefined,
+      fuelCapacityLiters: vehicle?.fuelCapacityLiters || '',
+      averageConsumptionKmPerLiter: vehicle?.averageConsumptionKmPerLiter || '',
     },
   });
 
@@ -92,7 +92,14 @@ export default function AddVehicleDialog({ vehicle, children, onVehicleUpdate }:
     setIsSubmitting(false);
     setOpen(false);
     if (!isEditing) {
-        form.reset();
+        form.reset({
+          make: '',
+          model: '',
+          year: '',
+          plate: '',
+          fuelCapacityLiters: '',
+          averageConsumptionKmPerLiter: '',
+        });
     }
   }
 
