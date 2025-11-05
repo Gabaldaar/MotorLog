@@ -292,12 +292,12 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
               />
               <FormField
                 control={form.control}
-                name="liters"
+                name="pricePerLiter"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Litros</FormLabel>
+                    <FormLabel>$/Litro</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
+                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -305,12 +305,12 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
               />
               <FormField
                 control={form.control}
-                name="pricePerLiter"
+                name="liters"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>$/Litro</FormLabel>
+                    <FormLabel>Litros</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
+                      <Input type="number" step="0.01" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
