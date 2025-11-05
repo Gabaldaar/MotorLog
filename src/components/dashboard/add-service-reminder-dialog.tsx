@@ -55,7 +55,7 @@ const formSchema = z.object({
   completedDate: z.date().optional(),
   completedOdometer: z.coerce.number().optional(),
   serviceLocation: z.string().optional(),
-  cost: z.coerce.number().optional(),
+cost: z.coerce.number().optional(),
 }).refine(data => data.isCompleted || data.dueDate || data.dueOdometer, {
   message: "Debes especificar al menos una fecha o un odómetro para el recordatorio.",
   path: ["dueDate"], 
@@ -155,8 +155,10 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     if (values.isCompleted && values.isRecurring && values.recurrenceIntervalKm && values.completedOdometer) {
         nextDueOdometerForRecurring = values.completedOdometer + values.recurrenceIntervalKm;
     }
+    
+    const dateForTimeline = values.completedDate ? values.completedDate.toISOString() : (values.dueDate ? values.dueDate.toISOString() : new Date().toISOString());
 
-    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; } = {
+    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; date: string; } = {
       id: reminderId,
       vehicleId,
       serviceType: values.serviceType,
@@ -169,7 +171,8 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       serviceLocation: values.isCompleted ? values.serviceLocation : null,
       cost: values.isCompleted ? values.cost : null,
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
-      completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null
+      completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null,
+      date: dateForTimeline
     };
 
     if (isEditing && values.isCompleted && values.isRecurring && values.recurrenceIntervalKm && values.completedOdometer) {
@@ -448,5 +451,3 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     </Dialog>
   );
 }
-
-    

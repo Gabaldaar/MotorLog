@@ -226,21 +226,21 @@ export default function ServicesPage() {
                                       }
                                     </div>
                                   </div>
-
-                                  <div className="flex items-center gap-2 pt-4 border-t w-full mt-2">
-                                     <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer}>
-                                        <Button variant="outline" size="sm" className="w-full">
-                                            <Edit className="h-4 w-4 mr-1" /> Editar
-                                        </Button>
-                                    </AddServiceReminderDialog>
-                                    <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id}>
-                                       <Button variant="outline" size="sm" className="w-full text-destructive hover:text-destructive">
-                                          <Trash2 className="h-4 w-4 mr-1" /> Eliminar
-                                       </Button>
-                                    </DeleteServiceReminderDialog>
-                                  </div>
                               </div>
                             )}
+
+                            <div className="flex items-center gap-2 pt-4 border-t w-full mt-2">
+                                <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer}>
+                                <Button variant="outline" size="sm" className="w-full">
+                                    <Edit className="h-4 w-4 mr-1" /> Editar
+                                </Button>
+                                </AddServiceReminderDialog>
+                                <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id}>
+                                <Button variant="outline" size="sm" className="w-full text-destructive hover:text-destructive">
+                                    <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+                                </Button>
+                                </DeleteServiceReminderDialog>
+                            </div>
                         </div>
                     </div>
                   )
@@ -256,5 +256,3 @@ export default function ServicesPage() {
     </Card>
   );
 }
-
-    

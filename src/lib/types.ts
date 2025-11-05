@@ -43,6 +43,7 @@ export type ServiceReminder = {
   cost: number | null;
   isRecurring?: boolean | null;
   recurrenceIntervalKm?: number | null;
+  date: string; // Unified date for timeline
 };
 
 export type ProcessedFuelLog = FuelLog & {
@@ -71,4 +72,9 @@ export type ConfigItem = {
 };
 
 export type ConsumptionUnit = 'km/L' | 'L/100km';
-    
+
+export type TimelineItem = {
+  type: 'fuel' | 'service';
+  date: string;
+  data: FuelLog | ServiceReminder;
+};
