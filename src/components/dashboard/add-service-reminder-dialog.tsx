@@ -34,10 +34,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import type { ServiceReminder } from '@/lib/types';
-import { useUser, useFirestore } from '@/firebase';
-import { doc, collection } from 'firebase/firestore';
+import type { ServiceReminder, ConfigItem } from '@/lib/types';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const formSchema = z.object({
   serviceType: z.string().min(1, 'El tipo de servicio es obligatorio.'),
@@ -65,6 +66,13 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
   const { user } = useUser();
   const firestore = useFirestore();
   const isEditing = !!reminder;
+
+  const serviceTypesQuery = useMemoFirebase(() => {
+    if (!user) return null;
+    return query(collection(firestore, 'service_types'), orderBy('name'));
+  }, [firestore, user]);
+
+  const { data: serviceTypes, isLoading: isLoadingServiceTypes } = useCollection<ConfigItem>(serviceTypesQuery);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -132,9 +140,18 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Servicio</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Cambio de Aceite" {...field} />
-                  </FormControl>
+                   <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                        <FormControl>
+                        <SelectTrigger disabled={isLoadingServiceTypes}>
+                            <SelectValue placeholder={isLoadingServiceTypes ? "Cargando..." : "Selecciona un tipo"} />
+                        </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {serviceTypes?.map(serviceType => (
+                            <SelectItem key={serviceType.id} value={serviceType.name}>{serviceType.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                    </Select>
                   <FormMessage />
                 </FormItem>
               )}
