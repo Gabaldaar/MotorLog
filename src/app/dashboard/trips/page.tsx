@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Trip, ConfigItem } from '@/lib/types';
+import type { Trip, ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Route, Loader2 } from 'lucide-react';
@@ -24,8 +24,28 @@ export default function TripsPage() {
       orderBy('startDate', 'desc')
     );
   }, [firestore, user, vehicle]);
+  
+  const fuelLogsQuery = useMemoFirebase(() => {
+    if (!user || !vehicle) return null;
+    return query(
+        collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
+        orderBy('odometer', 'desc')
+    );
+  }, [firestore, user, vehicle]);
 
-  const { data: trips, isLoading } = useCollection<Trip>(tripsQuery);
+  const lastFuelLogQuery = useMemoFirebase(() => {
+    if (!user || !vehicle) return null;
+    return query(
+      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
+      orderBy('odometer', 'desc'),
+      limit(1)
+    );
+  }, [firestore, user, vehicle]);
+
+  const { data: trips, isLoading: isLoadingTrips } = useCollection<Trip>(tripsQuery);
+  const { data: fuelLogs, isLoading: isLoadingFuelLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
+  const { data: lastFuelLogData, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
+
   const { activeTrips, completedTrips } = useMemo(() => {
     const active: Trip[] = [];
     const completed: Trip[] = [];
@@ -43,7 +63,8 @@ export default function TripsPage() {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
-  const lastOdometer = 0; // TODO: Get last odometer from fuel logs
+  const lastOdometer = lastFuelLogData?.[0]?.odometer || 0;
+  const isLoading = isLoadingTrips || isLoadingFuelLogs || isLoadingLastLog;
 
   return (
     <div className="space-y-6">
@@ -68,7 +89,7 @@ export default function TripsPage() {
       ) : (
         <div className="space-y-8">
             <ActiveTrips trips={activeTrips} vehicleId={vehicle.id} lastOdometer={lastOdometer} />
-            <CompletedTrips trips={completedTrips} vehicleId={vehicle.id} />
+            <CompletedTrips trips={completedTrips} vehicleId={vehicle.id} allFuelLogs={fuelLogs || []} />
 
             {trips?.length === 0 && (
                 <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">

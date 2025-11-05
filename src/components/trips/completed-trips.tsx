@@ -1,51 +1,81 @@
 'use client';
 
-import type { Trip } from '@/lib/types';
+import type { Trip, ProcessedFuelLog } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Map, Calendar, Gauge, Info, Edit, Trash2 } from 'lucide-react';
+import { Map, Calendar, Gauge, Info, Edit, Trash2, Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import AddTripDialog from '../dashboard/add-trip-dialog';
 import { Button } from '../ui/button';
+import { useMemo } from 'react';
+import { differenceInHours, differenceInMinutes } from 'date-fns';
+import { usePreferences } from '@/context/preferences-context';
 
 interface CompletedTripsProps {
     trips: Trip[];
     vehicleId: string;
+    allFuelLogs: ProcessedFuelLog[];
 }
 
-function TripDetails({ trip }: { trip: Trip }) {
+function TripDetails({ trip, fuelLogsForTrip }: { trip: Trip, fuelLogsForTrip: ProcessedFuelLog[] }) {
+    const { getFormattedConsumption, consumptionUnit } = usePreferences();
     const kmTraveled = trip.endOdometer && trip.startOdometer ? trip.endOdometer - trip.startOdometer : 0;
     
-    // Placeholder for calculations - Phase 3
-    const fuelConsumed = 'N/A';
-    const totalCost = 'N/A';
-    const avgConsumption = 'N/A';
-    const costPerKm = 'N/A';
-    const duration = 'N/A';
+    const {
+        fuelConsumed,
+        totalCost,
+        avgConsumption,
+        costPerKm,
+        duration
+    } = useMemo(() => {
+        const fuelConsumed = fuelLogsForTrip.reduce((acc, log) => acc + log.liters, 0);
+        const totalCost = fuelLogsForTrip.reduce((acc, log) => acc + log.totalCost, 0);
+        
+        const avgConsumption = kmTraveled > 0 && fuelConsumed > 0 ? (kmTraveled / fuelConsumed) : 0;
+        const costPerKm = kmTraveled > 0 && totalCost > 0 ? (totalCost / kmTraveled) : 0;
+
+        let duration = "N/A";
+        if (trip.endDate && trip.startDate) {
+            const hours = differenceInHours(new Date(trip.endDate), new Date(trip.startDate));
+            const minutes = differenceInMinutes(new Date(trip.endDate), new Date(trip.startDate)) % 60;
+            duration = `${hours}h ${minutes}m`;
+        }
+
+        return {
+            fuelConsumed,
+            totalCost,
+            avgConsumption,
+            costPerKm,
+            duration
+        }
+    }, [trip, fuelLogsForTrip, kmTraveled]);
 
 
     return (
         <div className="space-y-3 pt-4 border-t pl-12">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 <div>
-                    <p className="font-medium">{fuelConsumed} L</p>
+                    <p className="font-medium">{fuelConsumed.toFixed(2)} L</p>
                     <p className="text-xs text-muted-foreground">Combustible Consumido</p>
                 </div>
                 <div>
-                    <p className="font-medium">{totalCost}</p>
+                    <p className="font-medium">${totalCost.toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">Costo Total</p>
                 </div>
                 <div>
-                    <p className="font-medium">{avgConsumption}</p>
-                    <p className="text-xs text-muted-foreground">Consumo Promedio</p>
+                    <p className="font-medium">{getFormattedConsumption(avgConsumption)}</p>
+                    <p className="text-xs text-muted-foreground">Consumo ({consumptionUnit})</p>
                 </div>
                  <div>
-                    <p className="font-medium">{costPerKm}</p>
+                    <p className="font-medium">${costPerKm.toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">Costo / Km</p>
                 </div>
-                 <div>
-                    <p className="font-medium">{duration}</p>
-                    <p className="text-xs text-muted-foreground">Duración</p>
+                 <div className="flex items-center gap-1.5">
+                     <Clock className="h-4 w-4 text-muted-foreground" />
+                     <div>
+                        <p className="font-medium">{duration}</p>
+                        <p className="text-xs text-muted-foreground">Duración</p>
+                     </div>
                 </div>
             </div>
              {trip.notes && (
@@ -69,9 +99,14 @@ function TripDetails({ trip }: { trip: Trip }) {
 }
 
 
-export default function CompletedTrips({ trips, vehicleId }: CompletedTripsProps) {
+export default function CompletedTrips({ trips, vehicleId, allFuelLogs }: CompletedTripsProps) {
   if (trips.length === 0) {
     return null;
+  }
+  
+  const getFuelLogsForTrip = (trip: Trip) => {
+    if (!trip.startOdometer || !trip.endOdometer) return [];
+    return allFuelLogs.filter(log => log.odometer > trip.startOdometer! && log.odometer <= trip.endOdometer!);
   }
 
   return (
@@ -101,7 +136,7 @@ export default function CompletedTrips({ trips, vehicleId }: CompletedTripsProps
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-4">
-                <TripDetails trip={trip} />
+                <TripDetails trip={trip} fuelLogsForTrip={getFuelLogsForTrip(trip)} />
               </AccordionContent>
             </AccordionItem>
           ))}
