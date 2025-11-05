@@ -105,7 +105,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     resolver: zodResolver(formSchema),
   });
   
-  const { watch, reset } = form;
+  const { watch, reset, setValue } = form;
   const isCompleted = watch('isCompleted');
   const isRecurring = watch('isRecurring');
 
@@ -122,12 +122,18 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
 
         isCompleted: reminder?.isCompleted || false,
         completedDate: reminder?.completedDate ? new Date(reminder.completedDate) : new Date(),
-        completedOdometer: reminder?.completedOdometer || reminder?.dueOdometer || lastOdometer || undefined,
+        completedOdometer: reminder?.completedOdometer || lastOdometer || undefined,
         serviceLocation: reminder?.serviceLocation || '',
         cost: reminder?.cost || undefined,
       });
     }
   }, [open, reminder, reset, lastOdometer]);
+
+  useEffect(() => {
+    if(isCompleted && !form.getValues('completedOdometer') && lastOdometer){
+      setValue('completedOdometer', lastOdometer)
+    }
+  }, [isCompleted, lastOdometer, form, setValue])
 
 
   async function onSubmit(values: FormValues) {
@@ -141,60 +147,62 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     }
     setIsSubmitting(true);
     
-    // --- Update or Create Current Reminder ---
     const reminderId = isEditing ? reminder.id : doc(collection(firestore, '_')).id;
     const reminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', reminderId);
     
-    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; } = {
+    let nextDueOdometerForRecurring: number | null = null;
+    
+    if (values.isCompleted && values.isRecurring && values.recurrenceIntervalKm && values.completedOdometer) {
+        nextDueOdometerForRecurring = values.completedOdometer + values.recurrenceIntervalKm;
+    }
+
+    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; } = {
       id: reminderId,
       vehicleId,
       serviceType: values.serviceType,
       notes: values.notes || '',
-      dueOdometer: values.dueOdometer || null,
+      dueOdometer: nextDueOdometerForRecurring ? nextDueOdometerForRecurring : (values.dueOdometer || null),
       isCompleted: values.isCompleted,
       isRecurring: values.isRecurring,
       recurrenceIntervalKm: values.isRecurring ? values.recurrenceIntervalKm : null,
-      // Completion data
       completedOdometer: values.isCompleted ? values.completedOdometer : null,
       serviceLocation: values.isCompleted ? values.serviceLocation : null,
       cost: values.isCompleted ? values.cost : null,
-      // Date conversions
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null
     };
 
-    setDocumentNonBlocking(reminderRef, reminderData, { merge: true });
+    if (isEditing && values.isCompleted && values.isRecurring && values.recurrenceIntervalKm && values.completedOdometer) {
+        const originalReminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', reminder.id);
+        const completedData = {
+          ...reminder,
+          ...reminderData,
+          isRecurring: false, // Mark original as non-recurring
+          dueOdometer: reminder.dueOdometer,
+        };
+        setDocumentNonBlocking(originalReminderRef, completedData, { merge: true });
 
-    // --- Create Next Recurring Reminder if applicable ---
-    if (values.isCompleted && values.isRecurring && values.recurrenceIntervalKm && values.completedOdometer) {
-      const nextReminderId = doc(collection(firestore, '_')).id;
-      const nextDueOdometer = values.completedOdometer + values.recurrenceIntervalKm;
+        const nextReminderId = doc(collection(firestore, '_')).id;
+        const nextReminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', nextReminderId);
+        const newReminderData = {
+            ...reminderData,
+            id: nextReminderId,
+            isCompleted: false,
+            completedDate: null,
+            completedOdometer: null,
+            cost: null,
+            serviceLocation: null,
+            dueDate: null, // Reset due date for next one, it's odometer based
+            dueOdometer: values.completedOdometer + values.recurrenceIntervalKm,
+        };
+        setDocumentNonBlocking(nextReminderRef, newReminderData, { merge: true });
+        toast({
+            title: '¡Servicio Recurrente!',
+            description: `Se ha creado un nuevo recordatorio para los ${(values.completedOdometer + values.recurrenceIntervalKm).toLocaleString()} km.`,
+        });
 
-      const nextReminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; } = {
-        id: nextReminderId,
-        vehicleId,
-        serviceType: values.serviceType,
-        notes: values.notes || '',
-        dueOdometer: nextDueOdometer,
-        isCompleted: false,
-        isRecurring: true,
-        recurrenceIntervalKm: values.recurrenceIntervalKm,
-        // Reset completion fields
-        completedOdometer: null,
-        serviceLocation: null,
-        cost: null,
-        // Date conversions
-        dueDate: null,
-        completedDate: null,
-      };
-      
-      const nextReminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', nextReminderId);
-      setDocumentNonBlocking(nextReminderRef, nextReminderData, { merge: true });
-
-      toast({
-        title: '¡Servicio Recurrente!',
-        description: `Se ha creado un nuevo recordatorio para los ${nextDueOdometer.toLocaleString()} km.`,
-      });
+    } else {
+        setDocumentNonBlocking(reminderRef, reminderData, { merge: true });
     }
 
     toast({
@@ -302,7 +310,6 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                     )}
                   />
 
-                  {/* Recurring Service Section */}
                   <FormField
                     control={form.control}
                     name="isRecurring"
@@ -340,7 +347,6 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                   
                   <Separator />
 
-                  {/* Completion Section */}
                   <FormField
                     control={form.control}
                     name="isCompleted"
@@ -442,5 +448,3 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     </Dialog>
   );
 }
-
-    

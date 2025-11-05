@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { ServiceReminder, ProcessedFuelLog } from '@/lib/types';
@@ -182,41 +181,44 @@ export default function ServicesPage() {
                                   {(reminder.dueOdometer || reminder.isRecurring) && (
                                     <p className="text-xs italic mt-1">
                                       {reminder.isRecurring && `Servicio recurrente cada ${reminder.recurrenceIntervalKm?.toLocaleString()} km. `}
-                                      {reminder.dueOdometer && `(Programado para los ${reminder.dueOdometer.toLocaleString()} km)`}
+                                      {reminder.dueOdometer && `(Próximo a los ${reminder.dueOdometer.toLocaleString()} km)`}
                                     </p>
                                   )}
                                 </div>
                             ) : (
-                              <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
-                                  {reminder.dueDate && (
-                                  <span className='flex items-center gap-1.5'>
-                                      <Calendar className="h-4 w-4" />
-                                      {formatDate(reminder.dueDate)}
-                                  </span>
-                                  )}
-                                  {reminder.dueOdometer && (
-                                  <span className='flex items-center gap-1.5'>
-                                      <Gauge className="h-4 w-4" />
-                                      {reminder.dueOdometer.toLocaleString()} km
-                                  </span>
-                                  )}
-                                  {(reminder.isOverdue || reminder.isUrgent) && (
-                                    <span className={cn('flex items-center gap-1.5 font-medium', {
-                                      'text-destructive': reminder.isOverdue,
-                                      'text-amber-600': reminder.isUrgent,
-                                    })}>
-                                      <AlertTriangle className="h-4 w-4" />
-                                      {reminder.kmsRemaining !== null && reminder.kmsRemaining < 0 
-                                        ? `Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km`
-                                        : reminder.kmsRemaining !== null ? `Faltan ${reminder.kmsRemaining.toLocaleString()} km` : ''
-                                      }
-                                      {reminder.kmsRemaining !== null && reminder.daysRemaining !== null ? ' / ' : ''}
-                                       {reminder.daysRemaining !== null && reminder.daysRemaining < 0 
-                                        ? `Vencido hace ${Math.abs(reminder.daysRemaining)} días`
-                                        : reminder.daysRemaining !== null ? `Faltan ${reminder.daysRemaining} días` : ''
-                                      }
+                              <div className="text-sm text-muted-foreground flex flex-col items-start gap-y-2 gap-x-6 mt-2">
+                                  <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                                    {reminder.dueDate && (
+                                    <span className='flex items-center gap-1.5'>
+                                        <Calendar className="h-4 w-4" />
+                                        Vence el {formatDate(reminder.dueDate)}
                                     </span>
-                                  )}
+                                    )}
+                                    {reminder.dueOdometer && (
+                                    <span className='flex items-center gap-1.5'>
+                                        <Gauge className="h-4 w-4" />
+                                        Vence a los {reminder.dueOdometer.toLocaleString()} km
+                                    </span>
+                                    )}
+                                  </div>
+                                  
+                                  <div className={cn('flex items-center gap-1.5 font-medium', {
+                                    'text-destructive': reminder.isOverdue,
+                                    'text-amber-600': reminder.isUrgent,
+                                    'text-muted-foreground/80': !reminder.isOverdue && !reminder.isUrgent
+                                  })}>
+                                    {(reminder.isOverdue || reminder.isUrgent) && <AlertTriangle className="h-4 w-4" />}
+                                    
+                                    {reminder.kmsRemaining !== null && reminder.kmsRemaining < 0 
+                                      ? `Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km`
+                                      : reminder.kmsRemaining !== null ? `Faltan ${reminder.kmsRemaining.toLocaleString()} km` : ''
+                                    }
+                                    {(reminder.kmsRemaining !== null && reminder.daysRemaining !== null && (reminder.kmsRemaining < 0 || reminder.daysRemaining < 0)) ? ' o ' : (reminder.kmsRemaining !== null && reminder.daysRemaining !== null ? ' / ' : '')}
+                                      {reminder.daysRemaining !== null && reminder.daysRemaining < 0 
+                                      ? `Vencido hace ${Math.abs(reminder.daysRemaining)} días`
+                                      : reminder.daysRemaining !== null ? `Faltan ${reminder.daysRemaining} días` : ''
+                                    }
+                                  </div>
                               </div>
                             )}
                         </div>
@@ -243,3 +245,4 @@ export default function ServicesPage() {
     </Card>
   );
 }
+
