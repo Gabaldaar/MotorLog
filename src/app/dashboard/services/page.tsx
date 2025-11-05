@@ -119,7 +119,7 @@ export default function ServicesPage() {
             ) : sortedReminders.length > 0 ? (
                 sortedReminders.map((reminder) => {
                   return (
-                    <div key={reminder.id} className={cn("flex items-start gap-4 rounded-lg border p-4 transition-colors", {
+                    <div key={reminder.id} className={cn("flex items-start gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4 transition-colors", {
                       "bg-muted/30": reminder.isCompleted,
                       "border-destructive/50 bg-destructive/10": !reminder.isCompleted && reminder.isOverdue,
                       "border-amber-500/50 bg-amber-500/10": !reminder.isCompleted && reminder.isUrgent,
@@ -135,17 +135,23 @@ export default function ServicesPage() {
                               })} />
                             )}
                         </div>
-                        <div className={cn("flex-1 grid gap-y-2", { "opacity-60": reminder.isCompleted })}>
+                        <div className={cn("flex-1 grid gap-y-2 min-w-0", { "opacity-60": reminder.isCompleted })}>
                             <div className="flex justify-between items-start">
-                                <p className={cn("font-semibold text-lg", { "line-through": reminder.isCompleted })}>
+                                <p className={cn("font-semibold text-lg truncate", { "line-through": reminder.isCompleted })}>
                                   {reminder.serviceType}
                                 </p>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="hidden sm:flex items-center gap-2 flex-shrink-0 ml-4">
                                   {!reminder.isCompleted && reminder.isOverdue && <Badge variant="destructive">Vencido</Badge>}
                                   {!reminder.isCompleted && reminder.isUrgent && <Badge className="bg-amber-500 hover:bg-amber-500/80 text-white">Urgente</Badge>}
                                   {reminder.isRecurring && !reminder.isCompleted && <Badge variant="outline" className="flex items-center gap-1"><Repeat className="h-3 w-3"/> Recurrente</Badge>}
                                 </div>
                             </div>
+                            <div className="sm:hidden flex items-center gap-2 flex-wrap">
+                                {!reminder.isCompleted && reminder.isOverdue && <Badge variant="destructive">Vencido</Badge>}
+                                {!reminder.isCompleted && reminder.isUrgent && <Badge className="bg-amber-500 hover:bg-amber-500/80 text-white">Urgente</Badge>}
+                                {reminder.isRecurring && !reminder.isCompleted && <Badge variant="outline" className="flex items-center gap-1"><Repeat className="h-3 w-3"/> Recurrente</Badge>}
+                            </div>
+
                             <p className="text-muted-foreground text-sm mt-1">{reminder.notes}</p>
                             
                              {reminder.isCompleted ? (
@@ -202,7 +208,7 @@ export default function ServicesPage() {
                                     )}
                                   </div>
                                   
-                                  <div className={cn('flex items-center gap-1.5 font-medium', {
+                                  <div className={cn('flex flex-wrap items-center gap-1.5 font-medium', {
                                     'text-destructive': reminder.isOverdue,
                                     'text-amber-600': reminder.isUrgent,
                                     'text-muted-foreground/80': !reminder.isOverdue && !reminder.isUrgent
@@ -222,7 +228,7 @@ export default function ServicesPage() {
                               </div>
                             )}
                         </div>
-                        <div className='flex flex-col sm:flex-row items-center gap-2'>
+                        <div className='flex flex-row sm:flex-col items-center gap-2'>
                               <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer}>
                                   <Button variant="outline" size="icon">
                                       <Edit className="h-4 w-4" />
@@ -245,4 +251,3 @@ export default function ServicesPage() {
     </Card>
   );
 }
-
