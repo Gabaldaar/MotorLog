@@ -2,88 +2,45 @@
  * @fileoverview Firestore Security Rules for FuelWise application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for all data. Each user has full control over their own data,
- * and no user can access another user's data. This is enforced through path-based authorization.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profile information. The `userId` must match the authenticated user's UID.
- * - /users/{userId}/vehicles/{vehicleId}: Stores vehicles owned by the user.
- * - /users/{userId}/vehicles/{vehicleId}/fuel_records/{fuelRecordId}: Stores fuel records for a specific vehicle.
- * - /users/{userId}/vehicles/{vehicleId}/service_reminders/{serviceReminderId}: Stores service reminders for a specific vehicle.
- * - /users/{userId}/fuel_types/{fuelTypeId}: User-specific fuel type configurations.
- * - /users/{userId}/service_types/{serviceTypeId}: User-specific service type configurations.
- * - /users/{userId}/gas_stations/{gasStationId}: User-specific gas station configurations.
- *
- * Key Security Decisions:
- * - Users can only access their own data.
- * - Data is nested under /users/{userId} to enforce ownership.
- * - No user listing is allowed to protect privacy.
- * - The rules rely on path-based authorization, checking the `request.auth.uid` against the `userId` parameter in the path.
+ * This ruleset allows any authenticated user to read and write data.
+ * This is to support multi-user collaboration on the same set of vehicles.
+ * Access is restricted to authenticated users only.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
     function isSignedIn() {
       return request.auth != null;
     }
 
+    // Allow any authenticated user to read/write their own user profile.
     match /users/{userId} {
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.id == resource.data.id;
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Allow any authenticated user to manage vehicles and their sub-collections.
+    match /vehicles/{vehicleId} {
+      allow read, write: if isSignedIn();
 
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource != null;
+      match /fuel_records/{fuelRecordId} {
+        allow read, write: if isSignedIn();
       }
 
-      match /vehicles/{vehicleId} {
-        allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
-        allow get, list: if isSignedIn() && isOwner(userId);
-        allow update: if isSignedIn() && isOwner(userId) && resource != null && request.resource.data.userId == userId;
-        allow delete: if isSignedIn() && isExistingOwner(userId);
-
-        function isExistingOwner(userId) {
-          return isOwner(userId) && resource != null;
-        }
-
-        match /fuel_records/{fuelRecordId} {
-          allow create, get, list: if isSignedIn() && isOwner(userId);
-          allow update: if isSignedIn() && isOwner(userId) && resource != null;
-          allow delete: if isSignedIn() && isExistingOwner(userId);
-
-          function isExistingOwner(userId) {
-            return isOwner(userId) && resource != null;
-          }
-        }
-
-        match /service_reminders/{serviceReminderId} {
-          allow create, get, list: if isSignedIn() && isOwner(userId);
-          allow update: if isSignedIn() && isOwner(userId) && resource != null;
-          allow delete: if isSignedIn() && isExistingOwner(userId);
-
-          function isExistingOwner(userId) {
-            return isOwner(userId) && resource != null;
-          }
-        }
+      match /service_reminders/{serviceReminderId} {
+        allow read, write: if isSignedIn();
       }
-
-      // Rules for user-specific configuration collections
-      match /fuel_types/{fuelTypeId} {
-        allow create, get, list, update, delete: if isSignedIn() && isOwner(userId);
-      }
-      match /service_types/{serviceTypeId} {
-        allow create, get, list, update, delete: if isSignedIn() && isOwner(userId);
-      }
-      match /gas_stations/{gasStationId} {
-        allow create, get, list, update, delete: if isSignedIn() && isOwner(userId);
-      }
+    }
+    
+    // Configuration collections are now top-level and shared.
+    match /fuel_types/{fuelTypeId} {
+      allow read, write: if isSignedIn();
+    }
+    match /service_types/{serviceTypeId} {
+      allow read, write: if isSignedIn();
+    }
+    match /gas_stations/{gasStationId} {
+      allow read, write: if isSignedIn();
     }
   }
 }

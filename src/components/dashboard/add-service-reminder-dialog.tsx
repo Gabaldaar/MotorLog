@@ -89,7 +89,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     setIsSubmitting(true);
     
     const reminderId = isEditing ? reminder.id : doc(collection(firestore, '_')).id;
-    const reminderRef = doc(firestore, 'users', user.uid, 'vehicles', vehicleId, 'service_reminders', reminderId);
+    const reminderRef = doc(firestore, 'vehicles', vehicleId, 'service_reminders', reminderId);
     
     const reminderData = {
       ...values,

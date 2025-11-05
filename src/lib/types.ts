@@ -1,6 +1,5 @@
 export type Vehicle = {
   id: string;
-  userId: string;
   make: string;
   model: string;
   year: number;
@@ -14,6 +13,7 @@ export type Vehicle = {
 export type FuelLog = {
   id: string;
   vehicleId: string;
+  userId: string;
   date: string; // ISO date string
   odometer: number;
   fuelType: 'Gasolina' | 'Diesel' | 'Etanol';

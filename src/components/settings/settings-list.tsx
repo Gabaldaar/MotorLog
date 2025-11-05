@@ -67,7 +67,7 @@ export default function SettingsList({ title, description, items, collectionName
 
   const handleDelete = (itemId: string) => {
     if (!user) return;
-    const itemRef = doc(firestore, 'users', user.uid, collectionName, itemId);
+    const itemRef = doc(firestore, collectionName, itemId);
     deleteDocumentNonBlocking(itemRef);
     toast({
         title: `${itemName} eliminado`,
@@ -80,7 +80,7 @@ export default function SettingsList({ title, description, items, collectionName
 
     if (editingItem) {
       // Update
-      const itemRef = doc(firestore, 'users', user.uid, collectionName, editingItem.id);
+      const itemRef = doc(firestore, collectionName, editingItem.id);
       setDocumentNonBlocking(itemRef, { name: values.name }, { merge: true });
       toast({
         title: `${itemName} actualizado`,
@@ -88,7 +88,7 @@ export default function SettingsList({ title, description, items, collectionName
       })
     } else {
       // Create
-      const collectionRef = collection(firestore, 'users', user.uid, collectionName);
+      const collectionRef = collection(firestore, collectionName);
       addDocumentNonBlocking(collectionRef, { name: values.name });
        toast({
         title: `${itemName} añadido`,

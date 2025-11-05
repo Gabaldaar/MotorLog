@@ -82,12 +82,13 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     setIsSubmitting(true);
     
     const vehicleId = isEditing ? vehicle.id : doc(collection(firestore, '_')).id;
-    const vehicleRef = doc(firestore, 'users', user.uid, 'vehicles', vehicleId);
+    // Save to the top-level 'vehicles' collection
+    const vehicleRef = doc(firestore, 'vehicles', vehicleId);
     
     const vehicleData = {
         ...values,
         id: vehicleId,
-        userId: user.uid,
+        // No longer storing userId, as it's a shared resource
         imageUrl: values.imageUrl || `https://picsum.photos/seed/${vehicleId}/600/400`,
         imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
     };

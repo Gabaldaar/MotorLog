@@ -23,7 +23,7 @@ export default function ServicesPage() {
   const remindersQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
-        collection(firestore, 'users', user.uid, 'vehicles', vehicle.id, 'service_reminders'),
+        collection(firestore, 'vehicles', vehicle.id, 'service_reminders'),
         orderBy('dueDate', 'asc')
     );
   }, [firestore, user, vehicle]);
@@ -32,7 +32,7 @@ export default function ServicesPage() {
   
   const handleReminderDelete = (reminderId: string) => {
     if (!user || !vehicle) return;
-    const reminderRef = doc(firestore, 'users', user.uid, 'vehicles', vehicle.id, 'service_reminders', reminderId);
+    const reminderRef = doc(firestore, 'vehicles', vehicle.id, 'service_reminders', reminderId);
     deleteDocumentNonBlocking(reminderRef);
     toast({
         title: "Recordatorio Completado",

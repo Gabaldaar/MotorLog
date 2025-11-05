@@ -36,10 +36,6 @@
           "type": "string",
           "description": "Unique identifier for the Vehicle entity."
         },
-        "userId": {
-          "type": "string",
-          "description": "Reference to the User who owns this vehicle. (Relationship: User 1:N Vehicle)"
-        },
         "make": {
           "type": "string",
           "description": "Vehicle's make (e.g., Toyota)."
@@ -63,7 +59,6 @@
       },
       "required": [
         "id",
-        "userId",
         "make",
         "model",
         "year",
@@ -84,6 +79,10 @@
         "vehicleId": {
           "type": "string",
           "description": "Reference to the Vehicle this fuel record belongs to. (Relationship: Vehicle 1:N FuelRecord)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "ID of the user who created the record."
         },
         "date": {
           "type": "string",
@@ -118,6 +117,7 @@
       "required": [
         "id",
         "vehicleId",
+        "userId",
         "date",
         "odometerReading",
         "fuelType",
@@ -163,40 +163,65 @@
         "id",
         "vehicleId",
         "serviceType",
-        "dueDate",
-        "dueOdometerReading",
         "isCompleted"
       ]
     },
     "FuelType": {
-        "title": "FuelType",
-        "description": "Represents a user-configurable fuel type.",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string", "description": "Unique identifier." },
-            "name": { "type": "string", "description": "Name of the fuel type (e.g., 'Gasolina Premium')." }
+      "title": "FuelType",
+      "description": "Represents a configurable fuel type.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier."
         },
-        "required": ["id", "name"]
+        "name": {
+          "type": "string",
+          "description": "Name of the fuel type (e.g., 'Gasolina Premium')."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     },
     "ServiceType": {
-        "title": "ServiceType",
-        "description": "Represents a user-configurable service type.",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string", "description": "Unique identifier." },
-            "name": { "type": "string", "description": "Name of the service (e.g., 'Rotación de neumáticos')." }
+      "title": "ServiceType",
+      "description": "Represents a configurable service type.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier."
         },
-        "required": ["id", "name"]
+        "name": {
+          "type": "string",
+          "description": "Name of the service (e.g., 'Rotación de neumáticos')."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     },
     "GasStation": {
-        "title": "GasStation",
-        "description": "Represents a user-configurable gas station.",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string", "description": "Unique identifier." },
-            "name": { "type": "string", "description": "Name of the gas station (e.g., 'Shell Av. Principal')." }
+      "title": "GasStation",
+      "description": "Represents a configurable gas station.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier."
         },
-        "required": ["id", "name"]
+        "name": {
+          "type": "string",
+          "description": "Name of the gas station (e.g., 'Shell Av. Principal')."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
     }
   },
   "auth": {
@@ -214,96 +239,67 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profiles. User documents are created upon user registration. The `userId` parameter corresponds to the Firebase Auth UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase Auth UID."
-            }
-          ]
+          "description": "Stores user profiles. User documents are created upon user registration. The `userId` parameter corresponds to the Firebase Auth UID."
         }
       },
       {
-        "path": "/users/{userId}/vehicles/{vehicleId}",
+        "path": "/vehicles/{vehicleId}",
         "definition": {
           "entityName": "Vehicle",
           "schema": {
             "$ref": "#/backend/entities/Vehicle"
           },
-          "description": "Stores vehicles owned by the user. The `userId` parameter corresponds to the Firebase Auth UID. Enforces path-based ownership: a vehicle can only be accessed by its owner (the user whose ID matches the `userId` parameter).",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "vehicleId",
-              "description": "The unique identifier of the vehicle."
-            }
-          ]
+          "description": "Stores all vehicles. Any authenticated user can access this data."
         }
       },
       {
-        "path": "/users/{userId}/vehicles/{vehicleId}/fuel_records/{fuelRecordId}",
+        "path": "/vehicles/{vehicleId}/fuel_records/{fuelRecordId}",
         "definition": {
           "entityName": "FuelRecord",
           "schema": {
             "$ref": "#/backend/entities/FuelRecord"
           },
-          "description": "Stores fuel records for a specific vehicle.  Enforces path-based ownership.  A fuel record can only be accessed if the user owns the vehicle that the fuel record belongs to.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "vehicleId",
-              "description": "The unique identifier of the vehicle."
-            },
-            {
-              "name": "fuelRecordId",
-              "description": "The unique identifier of the fuel record."
-            }
-          ]
+          "description": "Stores fuel records for a specific vehicle. Any authenticated user can access this data."
         }
       },
       {
-        "path": "/users/{userId}/vehicles/{vehicleId}/service_reminders/{serviceReminderId}",
+        "path": "/vehicles/{vehicleId}/service_reminders/{serviceReminderId}",
         "definition": {
           "entityName": "ServiceReminder",
           "schema": {
             "$ref": "#/backend/entities/ServiceReminder"
           },
-          "description": "Stores service reminders for a specific vehicle.  Enforces path-based ownership. A service reminder can only be accessed if the user owns the vehicle that the service reminder belongs to.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase Auth UID."
-            },
-            {
-              "name": "vehicleId",
-              "description": "The unique identifier of the vehicle."
-            },
-            {
-              "name": "serviceReminderId",
-              "description": "The unique identifier of the service reminder."
-            }
-          ]
+          "description": "Stores service reminders for a specific vehicle. Any authenticated user can access this data."
         }
       },
       {
-          "path": "/users/{userId}/fuel_types/{fuelTypeId}",
-          "definition": { "entityName": "FuelType", "schema": { "$ref": "#/backend/entities/FuelType" } }
+        "path": "/fuel_types/{fuelTypeId}",
+        "definition": {
+          "entityName": "FuelType",
+          "schema": {
+            "$ref": "#/backend/entities/FuelType"
+          }
+        }
       },
       {
-          "path": "/users/{userId}/service_types/{serviceTypeId}",
-          "definition": { "entityName": "ServiceType", "schema": { "$ref": "#/backend/entities/ServiceType" } }
+        "path": "/service_types/{serviceTypeId}",
+        "definition": {
+          "entityName": "ServiceType",
+          "schema": {
+            "$ref": "#/backend/entities/ServiceType"
+          }
+        }
       },
       {
-          "path": "/users/{userId}/gas_stations/{gasStationId}",
-          "definition": { "entityName": "GasStation", "schema": { "$ref": "#/backend/entities/GasStation" } }
+        "path": "/gas_stations/{gasStationId}",
+        "definition": {
+          "entityName": "GasStation",
+          "schema": {
+            "$ref": "#/backend/entities/GasStation"
+          }
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to ensure data consistency, security, and scalability for the FuelWise application.  The core principle is Authorization Independence achieved through path-based ownership and denormalization where required.  Vehicles and FuelRecords are structured as subcollections of the user document to ensure only the owner has access.  The structure facilitates secure `list` operations (QAPs) as each collection's documents share the same security requirements, and access is controlled through the user's `uid` and path-based rules.\n\nSpecifically:\n\n*   `/users/{userId}/vehicles/{vehicleId}`:  This path enforces that vehicles are owned by a specific user. Security rules can simply check that `request.auth.uid == userId` to ensure ownership.\n*   `/users/{userId}/vehicles/{vehicleId}/fuel_records/{fuelRecordId}`: This path ensures that fuel records are owned by a specific vehicle, which is owned by a specific user. Security rules can check that the request is made by the owner of the vehicle.\n*   `/users/{userId}/vehicles/{vehicleId}/service_reminders/{serviceReminderId}`: Same ownership and security pattern as fuel records.\n*   The new configuration collections (`fuel_types`, `service_types`, `gas_stations`) are also nested under the user to enforce ownership, allowing each user to have their own customized lists.\n\nThis approach avoids any `get()` calls in the security rules, enabling atomic operations (transactions/batches) and easier debugging.\n"
+    "reasoning": "The Firestore structure is designed for collaboration. All data entities like vehicles, fuel records, and reminders are in top-level collections, accessible by any authenticated user. This removes the user-specific data nesting, allowing for a shared data model. User profiles are kept separate and private."
   }
 }

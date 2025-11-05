@@ -47,7 +47,7 @@ export default function DeleteVehicleDialog({
     }
     setIsSubmitting(true);
 
-    const vehicleRef = doc(firestore, 'users', user.uid, 'vehicles', vehicle.id);
+    const vehicleRef = doc(firestore, 'vehicles', vehicle.id);
     deleteDocumentNonBlocking(vehicleRef);
     
     toast({

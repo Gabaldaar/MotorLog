@@ -47,7 +47,7 @@ export default function DeleteFuelLogDialog({
     }
     setIsSubmitting(true);
 
-    const fuelLogRef = doc(firestore, 'users', user.uid, 'vehicles', vehicleId, 'fuel_records', fuelLogId);
+    const fuelLogRef = doc(firestore, 'vehicles', vehicleId, 'fuel_records', fuelLogId);
     deleteDocumentNonBlocking(fuelLogRef);
     
     toast({

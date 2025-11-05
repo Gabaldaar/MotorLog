@@ -41,7 +41,7 @@ export default function DashboardPage() {
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
-      collection(firestore, 'users', user.uid, 'vehicles', vehicle.id, 'fuel_records'),
+      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
       orderBy('date', 'desc')
     );
   }, [firestore, user, vehicle]);
@@ -49,7 +49,7 @@ export default function DashboardPage() {
   const remindersQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
-      collection(firestore, 'users', user.uid, 'vehicles', vehicle.id, 'service_reminders'),
+      collection(firestore, 'vehicles', vehicle.id, 'service_reminders'),
       orderBy('dueDate', 'asc')
     );
   }, [firestore, user, vehicle]);

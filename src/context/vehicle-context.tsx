@@ -27,7 +27,8 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'vehicles'), orderBy('make'));
+    // Query the top-level 'vehicles' collection
+    return query(collection(firestore, 'vehicles'), orderBy('make'));
   }, [firestore, user]);
 
   const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
@@ -37,7 +38,6 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
 
     const currentVehicleId = searchParams.get('vehicle');
     
-    // If there's a vehicle ID in the URL, try to select it
     if (currentVehicleId) {
       const vehicleFromUrl = vehicles.find(v => v.id === currentVehicleId);
       if (vehicleFromUrl) {
@@ -48,25 +48,20 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    // If there's already a selected vehicle and it still exists in the list, do nothing
     if(selectedVehicle && vehicles.some(v => v.id === selectedVehicle.id)) {
         return;
     }
 
-    // If no vehicle is selected (or selected one is gone), or no valid ID in URL
     if (vehicles.length > 0) {
       const vehicleToSelect = vehicles[0];
       setSelectedVehicle(vehicleToSelect);
-      // Update URL only if it doesn't match
       if (currentVehicleId !== vehicleToSelect.id) {
         const params = new URLSearchParams(searchParams.toString());
         params.set('vehicle', vehicleToSelect.id);
         router.replace(`${pathname}?${params.toString()}`);
       }
     } else {
-      // No vehicles available
       setSelectedVehicle(null);
-      // Optionally clear vehicle from URL
       const params = new URLSearchParams(searchParams.toString());
       if (params.has('vehicle')) {
           params.delete('vehicle');

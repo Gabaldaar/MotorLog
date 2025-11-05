@@ -91,14 +91,14 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      date: isEditing ? new Date(fuelLog.date) : new Date(),
-      odometer: isEditing ? fuelLog.odometer : undefined,
-      totalCost: isEditing ? fuelLog.totalCost : undefined,
-      liters: isEditing ? fuelLog.liters : undefined,
-      pricePerLiter: isEditing ? fuelLog.pricePerLiter : undefined,
-      fuelType: isEditing ? fuelLog.fuelType : 'Gasolina',
-      isFillUp: isEditing ? fuelLog.isFillUp : true,
-      gasStation: isEditing ? fuelLog.gasStation : '',
+      date: new Date(),
+      odometer: undefined,
+      totalCost: undefined,
+      liters: undefined,
+      pricePerLiter: undefined,
+      fuelType: 'Gasolina',
+      isFillUp: true,
+      gasStation: '',
     },
   });
 
@@ -106,29 +106,17 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
   const watchedValues = watch();
 
   useEffect(() => {
-    if (!isEditing) {
-      form.reset({
-        date: new Date(),
-        odometer: undefined,
-        totalCost: undefined,
-        liters: undefined,
-        pricePerLiter: undefined,
-        fuelType: 'Gasolina',
-        isFillUp: true,
-        gasStation: '',
-      });
-    } else if (fuelLog) {
-      form.reset({
-        date: new Date(fuelLog.date),
-        odometer: fuelLog.odometer,
-        totalCost: fuelLog.totalCost,
-        liters: fuelLog.liters,
-        pricePerLiter: fuelLog.pricePerLiter,
-        fuelType: fuelLog.fuelType,
-        isFillUp: fuelLog.isFillUp,
-        gasStation: fuelLog.gasStation,
-      })
-    }
+    const defaultVals = {
+      date: isEditing && fuelLog ? new Date(fuelLog.date) : new Date(),
+      odometer: isEditing && fuelLog ? fuelLog.odometer : undefined,
+      totalCost: isEditing && fuelLog ? fuelLog.totalCost : undefined,
+      liters: isEditing && fuelLog ? fuelLog.liters : undefined,
+      pricePerLiter: isEditing && fuelLog ? fuelLog.pricePerLiter : undefined,
+      fuelType: isEditing && fuelLog ? fuelLog.fuelType : 'Gasolina',
+      isFillUp: isEditing && fuelLog ? fuelLog.isFillUp : true,
+      gasStation: isEditing && fuelLog ? fuelLog.gasStation : '',
+    };
+    form.reset(defaultVals);
   }, [fuelLog, isEditing, form, open]);
 
 
@@ -184,13 +172,14 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
     setIsSubmitting(true);
     
     const logId = isEditing ? fuelLog.id : doc(collection(firestore, '_')).id;
-    const fuelLogRef = doc(firestore, 'users', authUser.uid, 'vehicles', vehicleId, 'fuel_records', logId);
+    const fuelLogRef = doc(firestore, 'vehicles', vehicleId, 'fuel_records', logId);
 
     const fuelLogData = {
         ...values,
         id: logId,
         date: values.date.toISOString(),
         vehicleId,
+        userId: authUser.uid,
         username: userProfile.username || authUser.email || 'Usuario',
         gasStation: values.gasStation || ''
     };

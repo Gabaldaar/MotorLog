@@ -23,19 +23,20 @@ export default function SettingsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
 
+  // Queries now point to top-level collections
   const fuelTypesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'fuel_types'), orderBy('name'));
+    return query(collection(firestore, 'fuel_types'), orderBy('name'));
   }, [firestore, user]);
 
   const serviceTypesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'service_types'), orderBy('name'));
+    return query(collection(firestore, 'service_types'), orderBy('name'));
   }, [firestore, user]);
 
   const gasStationsQuery = useMemoFirebase(() => {
     if (!user) return null;
-    return query(collection(firestore, 'users', user.uid, 'gas_stations'), orderBy('name'));
+    return query(collection(firestore, 'gas_stations'), orderBy('name'));
   }, [firestore, user]);
 
   const { data: fuelTypes, isLoading: isLoadingFuel } = useCollection<ConfigItem>(fuelTypesQuery);
