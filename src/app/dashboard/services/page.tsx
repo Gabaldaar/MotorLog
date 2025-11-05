@@ -5,13 +5,15 @@ import type { ServiceReminder, ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Wrench, Calendar, Gauge, Edit, AlertTriangle } from 'lucide-react';
+import { Plus, Wrench, Calendar, Gauge, Edit, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import AddServiceReminderDialog from '@/components/dashboard/add-service-reminder-dialog';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
+import { cn } from '@/lib/utils';
+import CompleteServiceDialog from '@/components/dashboard/complete-service-dialog';
 
 export default function ServicesPage() {
   const { selectedVehicle: vehicle } = useVehicles();
@@ -22,7 +24,7 @@ export default function ServicesPage() {
     if (!user || !vehicle) return null;
     return query(
         collection(firestore, 'vehicles', vehicle.id, 'service_reminders'),
-        orderBy('dueDate', 'asc')
+        orderBy('dueDate', 'desc') // Order by desc to show newest first
     );
   }, [firestore, user, vehicle]);
 
@@ -43,9 +45,26 @@ export default function ServicesPage() {
   }
 
   const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
-
-  const vehicleServiceReminders = (reminders || [])
-    .sort((a, b) => (a.isUrgent === b.isUrgent ? 0 : a.isUrgent ? -1 : 1));
+  
+  // Sort reminders: pending (most urgent first) then completed (most recent first)
+  const sortedReminders = (reminders || []).sort((a, b) => {
+    if (a.isCompleted && !b.isCompleted) return 1;
+    if (!a.isCompleted && b.isCompleted) return -1;
+    
+    if (!a.isCompleted && !b.isCompleted) {
+       // Urgency logic for pending reminders
+      if (a.isUrgent && !b.isUrgent) return -1;
+      if (!a.isUrgent && b.isUrgent) return 1;
+      const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+      const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      return aDate - bDate;
+    }
+    
+    // Sort completed reminders by completed date
+    const aDate = a.completedDate ? new Date(a.completedDate).getTime() : 0;
+    const bDate = b.completedDate ? new Date(b.completedDate).getTime() : 0;
+    return bDate - aDate;
+  });
   
   const getKmsRemaining = (dueOdometer: number) => {
     if (!lastOdometer || !dueOdometer) return null;
@@ -73,51 +92,89 @@ export default function ServicesPage() {
                     <Wrench className="h-12 w-12 text-muted-foreground animate-pulse" />
                     <p className="mt-4 text-muted-foreground">Cargando recordatorios...</p>
                 </div>
-            ) : vehicleServiceReminders.length > 0 ? (
-                vehicleServiceReminders.map((reminder: ServiceReminder) => {
+            ) : sortedReminders.length > 0 ? (
+                sortedReminders.map((reminder: ServiceReminder) => {
                   const kmsRemaining = reminder.dueOdometer ? getKmsRemaining(reminder.dueOdometer) : null;
                   return (
-                    <div key={reminder.id} className="flex items-start gap-4 rounded-lg border p-4">
+                    <div key={reminder.id} className={cn("flex items-start gap-4 rounded-lg border p-4 transition-colors", {
+                      "bg-muted/30": reminder.isCompleted,
+                      "border-destructive/50 bg-destructive/5": !reminder.isCompleted && kmsRemaining !== null && kmsRemaining < 0,
+                    })}>
                         <div className="flex-shrink-0 pt-1">
-                            <Wrench className="h-6 w-6 text-muted-foreground" />
+                            {reminder.isCompleted ? (
+                              <CheckCircle2 className="h-6 w-6 text-green-600" />
+                            ) : (
+                              <Wrench className="h-6 w-6 text-muted-foreground" />
+                            )}
                         </div>
-                        <div className="flex-1">
+                        <div className={cn("flex-1", { "opacity-60": reminder.isCompleted })}>
                             <div className="flex justify-between items-center">
-                                <p className="font-semibold text-lg">{reminder.serviceType}</p>
-                                {reminder.isUrgent && <Badge variant="destructive">Urgente</Badge>}
+                                <p className={cn("font-semibold text-lg", { "line-through": reminder.isCompleted })}>
+                                  {reminder.serviceType}
+                                </p>
+                                {reminder.isUrgent && !reminder.isCompleted && <Badge variant="destructive">Urgente</Badge>}
                             </div>
                             <p className="text-muted-foreground mt-1">{reminder.notes}</p>
-                            <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
-                                {reminder.dueDate && (
-                                <span className='flex items-center gap-1.5'>
-                                    <Calendar className="h-4 w-4" />
-                                    {formatDate(reminder.dueDate)}
-                                </span>
-                                )}
-                                {reminder.dueOdometer && (
-                                <span className='flex items-center gap-1.5'>
-                                    <Gauge className="h-4 w-4" />
-                                    {reminder.dueOdometer.toLocaleString()} km
-                                </span>
-                                )}
-                                {kmsRemaining !== null && (
-                                  <span className={`flex items-center gap-1.5 font-medium ${kmsRemaining < 0 ? 'text-destructive' : 'text-amber-600'}`}>
-                                    <AlertTriangle className="h-4 w-4" />
-                                    {kmsRemaining < 0 
-                                      ? `Vencido hace ${Math.abs(kmsRemaining).toLocaleString()} km`
-                                      : `Faltan ${kmsRemaining.toLocaleString()} km`
-                                    }
+                            
+                             {reminder.isCompleted ? (
+                                <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 mt-3">
+                                  {reminder.completedDate && (
+                                     <span className='flex items-center gap-1.5'>
+                                        <Calendar className="h-4 w-4" />
+                                        Completado el {formatDate(reminder.completedDate)}
+                                    </span>
+                                  )}
+                                  {reminder.completedOdometer && (
+                                     <span className='flex items-center gap-1.5'>
+                                        <Gauge className="h-4 w-4" />
+                                        a los {reminder.completedOdometer.toLocaleString()} km
+                                    </span>
+                                  )}
+                                  {reminder.serviceLocation && (
+                                     <span className='flex items-center gap-1.5'>
+                                        <Wrench className="h-4 w-4" />
+                                        en {reminder.serviceLocation}
+                                    </span>
+                                  )}
+                                </div>
+                            ) : (
+                              <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
+                                  {reminder.dueDate && (
+                                  <span className='flex items-center gap-1.5'>
+                                      <Calendar className="h-4 w-4" />
+                                      {formatDate(reminder.dueDate)}
                                   </span>
-                                )}
-                            </div>
+                                  )}
+                                  {reminder.dueOdometer && (
+                                  <span className='flex items-center gap-1.5'>
+                                      <Gauge className="h-4 w-4" />
+                                      {reminder.dueOdometer.toLocaleString()} km
+                                  </span>
+                                  )}
+                                  {kmsRemaining !== null && (
+                                    <span className={`flex items-center gap-1.5 font-medium ${kmsRemaining < 0 ? 'text-destructive' : 'text-amber-600'}`}>
+                                      <AlertTriangle className="h-4 w-4" />
+                                      {kmsRemaining < 0 
+                                        ? `Vencido hace ${Math.abs(kmsRemaining).toLocaleString()} km`
+                                        : `Faltan ${kmsRemaining.toLocaleString()} km`
+                                      }
+                                    </span>
+                                  )}
+                              </div>
+                            )}
                         </div>
                         <div className='flex items-center gap-2'>
-                             <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder}>
-                                <Button variant="outline" size="icon">
-                                    <Edit className="h-4 w-4" />
-                                    <span className="sr-only">Editar</span>
-                                </Button>
-                             </AddServiceReminderDialog>
+                              {!reminder.isCompleted && (
+                                <>
+                                  <CompleteServiceDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer} />
+                                  <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder}>
+                                      <Button variant="outline" size="icon">
+                                          <Edit className="h-4 w-4" />
+                                          <span className="sr-only">Editar</span>
+                                      </Button>
+                                  </AddServiceReminderDialog>
+                                </>
+                              )}
                              <DeleteServiceReminderDialog vehicleId={vehicle.id} reminderId={reminder.id} />
                         </div>
                     </div>

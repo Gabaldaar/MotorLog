@@ -35,6 +35,10 @@ export type ServiceReminder = {
   dueOdometer?: number;
   notes: string;
   isUrgent: boolean;
+  isCompleted: boolean;
+  completedDate?: string;
+  completedOdometer?: number;
+  serviceLocation?: string;
 };
 
 export type ProcessedFuelLog = FuelLog & {

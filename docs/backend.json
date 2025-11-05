@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -150,13 +151,26 @@
           "description": "Date when the service is due.",
           "format": "date-time"
         },
-        "dueOdometerReading": {
+        "dueOdometer": {
           "type": "number",
           "description": "Odometer reading when the service is due."
         },
         "isCompleted": {
           "type": "boolean",
           "description": "Indicates whether the service has been completed."
+        },
+        "completedDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date the service was completed."
+        },
+        "completedOdometer": {
+            "type": "number",
+            "description": "Odometer reading at the time of service completion."
+        },
+        "serviceLocation": {
+            "type": "string",
+            "description": "Location where the service was performed."
         }
       },
       "required": [
