@@ -23,7 +23,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Gauge, Droplets, Tag, Building, CheckCircle } from 'lucide-react';
+import { Edit, Trash2, Gauge, Droplets, Tag, Building, User as UserIcon } from 'lucide-react';
 import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
@@ -99,12 +99,13 @@ export default function LogsPage() {
                 <TableHead>$/Litro</TableHead>
                 <TableHead>Km/L</TableHead>
                 <TableHead>Gasolinera</TableHead>
+                <TableHead>Conductor</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
                 {isLoading ? (
-                    <TableRow><TableCell colSpan={9} className="h-24 text-center">Cargando registros...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="h-24 text-center">Cargando registros...</TableCell></TableRow>
                 ) : processedLogs.length > 0 ? (
                 processedLogs.map((log) => (
                     <TableRow key={log.id}>
@@ -118,6 +119,7 @@ export default function LogsPage() {
                     <TableCell>${log.pricePerLiter.toFixed(2)}</TableCell>
                     <TableCell>{log.consumption ? `${log.consumption.toFixed(2)}` : 'N/A'}</TableCell>
                     <TableCell>{log.gasStation}</TableCell>
+                    <TableCell>{log.username}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
                         <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log}>
@@ -136,7 +138,7 @@ export default function LogsPage() {
                 ))
                 ) : (
                 <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">
+                    <TableCell colSpan={10} className="h-24 text-center">
                     No hay registros de combustible para este vehículo.
                     </TableCell>
                 </TableRow>
@@ -178,6 +180,12 @@ export default function LogsPage() {
                                         <div className="flex justify-between">
                                             <span className="flex items-center gap-2 text-muted-foreground"><Building className="h-4 w-4" /> Gasolinera</span>
                                             <span>{log.gasStation}</span>
+                                        </div>
+                                    )}
+                                    {log.username && (
+                                        <div className="flex justify-between">
+                                            <span className="flex items-center gap-2 text-muted-foreground"><UserIcon className="h-4 w-4" /> Conductor</span>
+                                            <span>{log.username}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-end gap-2 pt-2">
