@@ -13,7 +13,6 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
 import { cn } from '@/lib/utils';
-import CompleteServiceDialog from '@/components/dashboard/complete-service-dialog';
 
 export default function ServicesPage() {
   const { selectedVehicle: vehicle } = useVehicles();
@@ -24,7 +23,8 @@ export default function ServicesPage() {
     if (!user || !vehicle) return null;
     return query(
         collection(firestore, 'vehicles', vehicle.id, 'service_reminders'),
-        orderBy('dueDate', 'desc') // Order by desc to show newest first
+        orderBy('isCompleted', 'asc'), // Pending first
+        orderBy('dueDate', 'desc') // Then by date
     );
   }, [firestore, user, vehicle]);
 
@@ -46,21 +46,28 @@ export default function ServicesPage() {
 
   const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
   
-  // Sort reminders: pending (most urgent first) then completed (most recent first)
+  // Custom sort since Firestore can't do complex sorting with inequalities
   const sortedReminders = (reminders || []).sort((a, b) => {
     if (a.isCompleted && !b.isCompleted) return 1;
     if (!a.isCompleted && b.isCompleted) return -1;
     
+    // Both are pending
     if (!a.isCompleted && !b.isCompleted) {
-       // Urgency logic for pending reminders
-      if (a.isUrgent && !b.isUrgent) return -1;
-      if (!a.isUrgent && b.isUrgent) return 1;
+      const aUrgency = a.dueOdometer ? a.dueOdometer - lastOdometer : Infinity;
+      const bUrgency = b.dueOdometer ? b.dueOdometer - lastOdometer : Infinity;
       const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
       const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+      
+      // If both have odometer due, sort by that
+      if (a.dueOdometer && b.dueOdometer) return aUrgency - bUrgency;
+      // If one has odometer and is past due, it's more urgent
+      if (aUrgency < 0 && bUrgency > 0) return -1;
+      if (bUrgency < 0 && aUrgency > 0) return 1;
+      // Otherwise sort by date
       return aDate - bDate;
     }
     
-    // Sort completed reminders by completed date
+    // Both are completed, sort by most recent completed date
     const aDate = a.completedDate ? new Date(a.completedDate).getTime() : 0;
     const bDate = b.completedDate ? new Date(b.completedDate).getTime() : 0;
     return bDate - aDate;
@@ -78,7 +85,7 @@ export default function ServicesPage() {
             <CardTitle className="font-headline">Servicios y Mantenimiento</CardTitle>
             <CardDescription>Gestiona los recordatorios de servicio para tu {vehicle.make} {vehicle.model}.</CardDescription>
         </div>
-        <AddServiceReminderDialog vehicleId={vehicle.id}>
+        <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastOdometer}>
             <Button>
                 <Plus className='-ml-1 mr-2 h-4 w-4' />
                 Añadir Recordatorio
@@ -171,10 +178,7 @@ export default function ServicesPage() {
                             )}
                         </div>
                         <div className='flex items-center gap-2'>
-                              {!reminder.isCompleted && (
-                                  <CompleteServiceDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer} />
-                              )}
-                              <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder}>
+                              <AddServiceReminderDialog vehicleId={vehicle.id} reminder={reminder} lastOdometer={lastOdometer}>
                                   <Button variant="outline" size="icon">
                                       <Edit className="h-4 w-4" />
                                       <span className="sr-only">Editar</span>
@@ -196,3 +200,5 @@ export default function ServicesPage() {
     </Card>
   );
 }
+
+    
