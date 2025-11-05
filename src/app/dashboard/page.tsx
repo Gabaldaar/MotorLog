@@ -15,6 +15,7 @@ import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
+import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
 
 function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
   const sortedLogs = logs
@@ -133,6 +134,8 @@ export default function DashboardPage() {
     const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
     return aDate - bDate;
   });
+  
+  const urgentOrOverdueReminders = sortedPendingReminders.filter(r => r.isOverdue || r.isUrgent);
 
   const nextService = sortedPendingReminders[0];
 
@@ -164,6 +167,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <UrgentServicesAlert reminders={urgentOrOverdueReminders} />
       <WelcomeBanner vehicle={vehicleWithAvgConsumption} lastLog={vehicleFuelLogs[0]} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Consumo Promedio" value={getFormattedConsumption(avgConsumption)} description={consumptionUnit} />
