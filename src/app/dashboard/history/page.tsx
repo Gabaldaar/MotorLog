@@ -4,7 +4,7 @@
 import type { ProcessedFuelLog, ServiceReminder, TimelineItem } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import { useMemo }s from 'react';
+import { useMemo } from 'react';
 import AddFuelLogDialog from '@/components/dashboard/add-fuel-log-dialog';
 import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
 import AddServiceReminderDialog from '@/components/dashboard/add-service-reminder-dialog';
@@ -239,3 +239,5 @@ function ServiceItemContent({ reminder, vehicleId, lastOdometer }: { reminder: S
     </>
   )
 }
+
+    
