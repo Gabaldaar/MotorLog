@@ -103,7 +103,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       ...values,
       id: reminderId,
       vehicleId,
-      dueDate: values.dueDate?.toISOString(),
+      dueDate: values.dueDate?.toISOString() || null,
       notes: values.notes || '',
       dueOdometer: values.dueOdometer || null,
     };
