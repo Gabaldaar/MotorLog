@@ -97,7 +97,7 @@ export default function ServicesPage() {
   
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <CardTitle className="font-headline">Servicios y Mantenimiento</CardTitle>
             <CardDescription>Gestiona los recordatorios de servicio para tu {vehicle.make} {vehicle.model}.</CardDescription>
@@ -213,7 +213,7 @@ export default function ServicesPage() {
                                     'text-amber-600': reminder.isUrgent,
                                     'text-muted-foreground/80': !reminder.isOverdue && !reminder.isUrgent
                                   })}>
-                                    {(reminder.isOverdue || reminder.isUrgent) && <AlertTriangle className="h-4 w-4" />}
+                                    <AlertTriangle className="h-4 w-4" />
                                     
                                     {reminder.kmsRemaining !== null && reminder.kmsRemaining < 0 
                                       ? `Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km`
