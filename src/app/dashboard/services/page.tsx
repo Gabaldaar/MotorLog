@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ServiceReminder } from '@/lib/types';
@@ -45,7 +46,6 @@ export default function ServicesPage() {
   }
   
   const vehicleServiceReminders = (reminders || [])
-    .filter(r => r.dueDate)
     .sort((a, b) => (a.isUrgent === b.isUrgent ? 0 : a.isUrgent ? -1 : 1));
 
   return (
