@@ -39,27 +39,6 @@ export async function estimateFuelStop(input: EstimateFuelStopInput): Promise<Es
   return estimateFuelStopFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'estimateFuelStopPrompt',
-  input: {schema: EstimateFuelStopInputSchema},
-  output: {schema: EstimateFuelStopOutputSchema},
-  prompt: `You are a helpful AI assistant that estimates when a vehicle will need to refuel.
-
-  Based on the vehicle details, fuel capacity, average fuel consumption, and current fuel level, calculate the estimated distance the vehicle can travel before needing to refuel and the estimated date when the next refueling stop will be needed.
-
-  Vehicle Make: {{{vehicleMake}}}
-  Vehicle Model: {{{vehicleModel}}}
-  Vehicle Year: {{{vehicleYear}}}
-  Fuel Capacity (Liters): {{{fuelCapacityLiters}}}
-  Average Consumption (Km/Liter): {{{averageConsumptionKmPerLiter}}}
-  Current Fuel Level (Percent): {{{currentFuelLevelPercent}}}
-
-  Estimated Distance to Empty (Km): {{estimatedDistanceToEmptyKm}}
-  Estimated Refuel Date (ISO Format): {{estimatedRefuelDate}}
-
-  Now do the calculation.`,
-});
-
 const estimateFuelStopFlow = ai.defineFlow(
   {
     name: 'estimateFuelStopFlow',
@@ -75,14 +54,14 @@ const estimateFuelStopFlow = ai.defineFlow(
     const now = new Date();
     // Assuming a consumption rate of 1 km per day for now, this should be replaced with a user defined value
     // otherwise the AI could estimate a daily average by tracking the user's distance travelled daily
-    const daysToEmpty = estimatedDistanceToEmptyKm / 1;
+    const dailyKmTravelAvg = 50; // Using a more realistic average
+    const daysToEmpty = estimatedDistanceToEmptyKm / dailyKmTravelAvg;
     const estimatedRefuelDate = new Date(now.setDate(now.getDate() + daysToEmpty)).toISOString();
 
-    const {output} = await prompt({
-      ...input,
+    // Return the calculated values directly, removing the unnecessary AI call.
+    return {
       estimatedDistanceToEmptyKm,
       estimatedRefuelDate,
-    });
-    return output!;
+    };
   }
 );
