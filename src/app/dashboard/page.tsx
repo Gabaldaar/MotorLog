@@ -9,7 +9,7 @@ import ServiceReminders from '@/components/dashboard/service-reminders';
 import RecentFuelLogs from '@/components/dashboard/recent-fuel-logs';
 import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
 function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
@@ -66,14 +66,25 @@ export default function DashboardPage() {
     );
   }, [firestore, user, vehicle]);
 
+  const lastFuelLogQuery = useMemoFirebase(() => {
+    if (!user || !vehicle) return null;
+    return query(
+      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
+      orderBy('odometer', 'desc'),
+      limit(1)
+    );
+  }, [firestore, user, vehicle]);
+
+
   const { data: fuelLogs, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
+  const { data: lastFuelLog, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
 
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
-  if (isLoadingLogs || isLoadingReminders) {
+  if (isLoadingLogs || isLoadingReminders || isLoadingLastLog) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -87,10 +98,25 @@ export default function DashboardPage() {
   
   const totalSpent = vehicleFuelLogs.reduce((acc, log) => acc + log.totalCost, 0);
   const totalLiters = vehicleFuelLogs.reduce((acc, log) => acc + log.liters, 0);
+
+  const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
   
-  const nextService = [...vehicleServiceReminders]
-    .filter(r => r.dueDate)
-    .sort((a,b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
+  const pendingReminders = vehicleServiceReminders.filter(r => !r.isCompleted);
+
+  const sortedPendingReminders = [...pendingReminders].sort((a, b) => {
+    const aUrgency = a.dueOdometer ? a.dueOdometer - lastOdometer : Infinity;
+    const bUrgency = b.dueOdometer ? b.dueOdometer - lastOdometer : Infinity;
+
+    if (a.dueOdometer && b.dueOdometer) return aUrgency - bUrgency;
+    if (a.dueOdometer) return -1; // Prioritize odometer if only one has it
+    if (b.dueOdometer) return 1;
+
+    const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+    const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+    return aDate - bDate;
+  });
+
+  const nextService = sortedPendingReminders[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,7 +139,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-           <ServiceReminders data={vehicleServiceReminders} />
+           <ServiceReminders data={pendingReminders} />
         </div>
         <div className="lg:col-span-2">
           
