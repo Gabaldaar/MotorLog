@@ -39,3 +39,9 @@ export type ProcessedFuelLog = FuelLog & {
   distanceTraveled?: number;
   consumption?: number; // km/L
 };
+
+export type User = {
+  id: string;
+  email: string;
+  username: string;
+};

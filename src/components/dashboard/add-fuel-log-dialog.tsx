@@ -40,10 +40,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { cn, formatDate } from '@/lib/utils';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { FuelLog } from '@/lib/types';
+import type { FuelLog, User } from '@/lib/types';
 
 const formSchema = z.object({
   date: z.date({
@@ -77,9 +77,16 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
   const { toast } = useToast();
   const [lastEdited, setLastEdited] = useState<LastEditedField>(null);
 
-  const { user } = useUser();
+  const { user: authUser } = useUser();
   const firestore = useFirestore();
   const isEditing = !!fuelLog;
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile } = useDoc<User>(userProfileRef);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -147,7 +154,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
 
 
   async function onSubmit(values: FormValues) {
-    if (!user) {
+    if (!authUser || !userProfile) {
         toast({
             variant: "destructive",
             title: "Error",
@@ -177,14 +184,14 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
     setIsSubmitting(true);
     
     const logId = isEditing ? fuelLog.id : doc(collection(firestore, '_')).id;
-    const fuelLogRef = doc(firestore, 'users', user.uid, 'vehicles', vehicleId, 'fuel_records', logId);
+    const fuelLogRef = doc(firestore, 'users', authUser.uid, 'vehicles', vehicleId, 'fuel_records', logId);
 
     const fuelLogData = {
         ...values,
         id: logId,
         date: values.date.toISOString(),
         vehicleId,
-        username: user.displayName || user.email || 'Usuario',
+        username: userProfile.username || authUser.email || 'Usuario',
         gasStation: values.gasStation || ''
     };
 
