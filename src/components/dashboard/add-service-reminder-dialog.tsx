@@ -317,7 +317,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                         <div className="space-y-0.5">
                           <FormLabel className="flex items-center"><Repeat className="mr-2 h-4 w-4"/>Servicio Recurrente</FormLabel>
-                          <FormDescription>Generar un nuevo recordatorio al completar este.</FormDescription>
+                          <FormDescription>Repetir al completar.</FormDescription>
                         </div>
                         <FormControl>
                           <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -365,7 +365,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
 
                   {isCompleted && (
                     <div className="space-y-4 p-4 border rounded-md bg-muted/20">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="completedOdometer"
@@ -448,3 +448,5 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     </Dialog>
   );
 }
+
+    
