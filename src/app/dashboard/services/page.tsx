@@ -23,8 +23,7 @@ export default function ServicesPage() {
     if (!user || !vehicle) return null;
     return query(
         collection(firestore, 'vehicles', vehicle.id, 'service_reminders'),
-        orderBy('isCompleted', 'asc'), // Pending first
-        orderBy('dueDate', 'desc') // Then by date
+        orderBy('dueDate', 'desc')
     );
   }, [firestore, user, vehicle]);
 
@@ -200,5 +199,3 @@ export default function ServicesPage() {
     </Card>
   );
 }
-
-    
