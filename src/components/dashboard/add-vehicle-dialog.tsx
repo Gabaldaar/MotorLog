@@ -31,6 +31,7 @@ import type { Vehicle } from '@/lib/types';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
 const formSchema = z.object({
   make: z.string().min(1, 'La marca es obligatoria.'),
@@ -40,6 +41,9 @@ const formSchema = z.object({
   fuelCapacityLiters: z.coerce.number().min(1, 'La capacidad del tanque es obligatoria.'),
   averageConsumptionKmPerLiter: z.coerce.number().min(1, 'El consumo es obligatorio.'),
   imageUrl: z.string().url('URL de imagen inválida.').optional().or(z.literal('')),
+  defaultFuelType: z.enum(['Gasolina', 'Diesel', 'Etanol'], {
+    required_error: 'El tipo de combustible es obligatorio.',
+  }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -67,6 +71,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
       fuelCapacityLiters: vehicle?.fuelCapacityLiters,
       averageConsumptionKmPerLiter: vehicle?.averageConsumptionKmPerLiter,
       imageUrl: vehicle?.imageUrl || '',
+      defaultFuelType: vehicle?.defaultFuelType || 'Gasolina',
     },
   });
 
@@ -111,6 +116,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           fuelCapacityLiters: undefined,
           averageConsumptionKmPerLiter: undefined,
           imageUrl: '',
+          defaultFuelType: 'Gasolina',
         });
     }
   }
@@ -194,6 +200,28 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                     </FormItem>
                 )} />
             </div>
+            <FormField
+              control={form.control}
+              name="defaultFuelType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Combustible por Defecto</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecciona un tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Gasolina">Gasolina</SelectItem>
+                      <SelectItem value="Diesel">Diesel</SelectItem>
+                      <SelectItem value="Etanol">Etanol</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="imageUrl"

@@ -83,7 +83,7 @@ export default function LogsPage() {
             <CardTitle className="font-headline">Registros de Combustible</CardTitle>
             <CardDescription>Un historial completo de todos tus repostajes.</CardDescription>
         </div>
-        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} />
+        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle} />
       </CardHeader>
       <CardContent>
         {/* Desktop Table View */}
@@ -122,7 +122,7 @@ export default function LogsPage() {
                     <TableCell>{log.username}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex gap-2 justify-end">
-                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log}>
+                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log} vehicle={vehicle}>
                             <Button variant="ghost" size="icon">
                                 <Edit className="h-4 w-4" />
                             </Button>
@@ -189,7 +189,7 @@ export default function LogsPage() {
                                         </div>
                                     )}
                                     <div className="flex justify-end gap-2 pt-2">
-                                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log}>
+                                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log} vehicle={vehicle}>
                                             <Button variant="outline" size="sm">
                                                 <Edit className="h-4 w-4 mr-1" /> Editar
                                             </Button>

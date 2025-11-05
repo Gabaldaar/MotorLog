@@ -8,6 +8,7 @@ export type Vehicle = {
   averageConsumptionKmPerLiter: number;
   imageUrl: string;
   imageHint?: string;
+  defaultFuelType: 'Gasolina' | 'Diesel' | 'Etanol';
 };
 
 export type FuelLog = {

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,7 +44,7 @@ import { cn, formatDate } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { FuelLog, User } from '@/lib/types';
+import type { FuelLog, User, Vehicle } from '@/lib/types';
 
 const formSchema = z.object({
   date: z.date({
@@ -69,9 +70,10 @@ interface AddFuelLogDialogProps {
     lastLog?: FuelLog;
     fuelLog?: FuelLog;
     children?: React.ReactNode;
+    vehicle?: Vehicle;
 }
 
-export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children }: AddFuelLogDialogProps) {
+export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle, children }: AddFuelLogDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -96,7 +98,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
       totalCost: undefined,
       liters: undefined,
       pricePerLiter: undefined,
-      fuelType: 'Gasolina',
+      fuelType: vehicle?.defaultFuelType || 'Gasolina',
       isFillUp: true,
       gasStation: '',
     },
@@ -112,12 +114,12 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, children
       totalCost: isEditing && fuelLog ? fuelLog.totalCost : undefined,
       liters: isEditing && fuelLog ? fuelLog.liters : undefined,
       pricePerLiter: isEditing && fuelLog ? fuelLog.pricePerLiter : undefined,
-      fuelType: isEditing && fuelLog ? fuelLog.fuelType : 'Gasolina',
+      fuelType: (isEditing && fuelLog?.fuelType) || vehicle?.defaultFuelType || 'Gasolina',
       isFillUp: isEditing && fuelLog ? fuelLog.isFillUp : true,
       gasStation: isEditing && fuelLog ? fuelLog.gasStation : '',
     };
     form.reset(defaultVals);
-  }, [fuelLog, isEditing, form, open]);
+  }, [fuelLog, isEditing, form, open, vehicle]);
 
 
   useEffect(() => {
