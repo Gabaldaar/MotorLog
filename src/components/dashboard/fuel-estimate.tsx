@@ -8,12 +8,17 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { ai } from '@/ai/client';
 import type { EstimateFuelStopOutput } from '@/ai/flows/estimate-fuel-stop';
-import type { Vehicle } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 
 interface FuelEstimateProps {
-  vehicle: Vehicle;
+  vehicle: {
+    make: string;
+    model: string;
+    year: number;
+    fuelCapacityLiters: number;
+    averageConsumptionKmPerLiter: number;
+  };
 }
 
 export default function FuelEstimate({ vehicle }: FuelEstimateProps) {

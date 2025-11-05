@@ -13,17 +13,23 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 
-function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
+function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
   const sortedLogs = logs
+    .filter(log => log && typeof log.date === 'string')
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  return sortedLogs.map((log, index) => {
+  const processed = sortedLogs.map((log, index) => {
     if (index === 0) {
       return { ...log };
     }
     const prevLog = sortedLogs[index - 1];
+    if (!prevLog) return {...log};
+    
     const distanceTraveled = log.odometer - prevLog.odometer;
-    const consumption = distanceTraveled > 0 && log.liters > 0 ? distanceTraveled / log.liters : 0;
+    // Calculate consumption only if the previous log was a fill-up
+    const consumption = prevLog.isFillUp && distanceTraveled > 0 && log.liters > 0 
+      ? distanceTraveled / log.liters 
+      : 0;
     
     return {
       ...log,
@@ -31,6 +37,13 @@ function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
       consumption: parseFloat(consumption.toFixed(2)),
     };
   }).reverse(); // Reverse to show latest first
+
+  const consumptionLogs = processed.filter(log => log.consumption && log.consumption > 0);
+  const avgConsumption = consumptionLogs.length > 0 
+    ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
+    : vehicle.averageConsumptionKmPerLiter || 0;
+
+  return { processedLogs: processed, avgConsumption };
 }
 
 export default function DashboardPage() {
@@ -69,18 +82,15 @@ export default function DashboardPage() {
     );
   }
 
-  const vehicleFuelLogs = processFuelLogs(fuelLogs || []);
+  const { processedLogs: vehicleFuelLogs, avgConsumption } = processFuelLogs(fuelLogs || [], vehicle);
   const vehicleServiceReminders = serviceReminders || [];
   
   const totalSpent = vehicleFuelLogs.reduce((acc, log) => acc + log.totalCost, 0);
   const totalLiters = vehicleFuelLogs.reduce((acc, log) => acc + log.liters, 0);
   
-  const consumptionLogs = vehicleFuelLogs.filter(log => log.consumption && log.consumption > 0);
-  const avgConsumption = consumptionLogs.length > 0 
-    ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
-    : vehicle.averageConsumptionKmPerLiter;
-
-  const nextService = [...vehicleServiceReminders].sort((a,b) => new Date(a.dueDate || 0).getTime() - new Date(b.dueDate || 0).getTime())[0];
+  const nextService = [...vehicleServiceReminders]
+    .filter(r => r.dueDate)
+    .sort((a,b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -104,7 +114,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
            <Suspense fallback={<div>Cargando estimación...</div>}>
-            <FuelEstimate vehicle={vehicle} />
+            <FuelEstimate vehicle={{ ...vehicle, averageConsumptionKmPerLiter: avgConsumption }} />
            </Suspense>
         </div>
         <div className="lg:col-span-2">

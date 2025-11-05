@@ -44,7 +44,9 @@ export default function ServicesPage() {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
-  const vehicleServiceReminders = (reminders || []).sort((a, b) => (a.isUrgent === b.isUrgent ? 0 : a.isUrgent ? -1 : 1));
+  const vehicleServiceReminders = (reminders || [])
+    .filter(r => r.dueDate)
+    .sort((a, b) => (a.isUrgent === b.isUrgent ? 0 : a.isUrgent ? -1 : 1));
 
   return (
     <Card>
