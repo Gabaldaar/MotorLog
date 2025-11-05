@@ -1,23 +1,41 @@
+
+'use client';
+
 import type { Metadata } from 'next';
 import Image from 'next/image';
-import { vehicles } from '@/lib/data';
+import { useState } from 'react';
+import { vehicles as initialVehicles } from '@/lib/data';
 import type { Vehicle } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Car, Fuel, Gauge } from 'lucide-react';
 import AddVehicleDialog from '@/components/dashboard/add-vehicle-dialog';
 
-export const metadata: Metadata = {
-  title: 'Mis Vehículos - FuelWise',
-};
+// export const metadata: Metadata = {
+//   title: 'Mis Vehículos - FuelWise',
+// };
 
 export default function VehiclesPage() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
+
+  const handleVehicleUpdate = (vehicle: Vehicle) => {
+    const isEditing = vehicles.some(v => v.id === vehicle.id);
+    if (isEditing) {
+      setVehicles(vehicles.map(v => v.id === vehicle.id ? vehicle : v));
+    } else {
+      setVehicles([...vehicles, vehicle]);
+    }
+  };
 
   return (
     <div>
         <div className='flex items-center justify-between mb-6'>
             <h1 className='text-3xl font-headline'>Mis Vehículos</h1>
-            <AddVehicleDialog />
+            <AddVehicleDialog onVehicleUpdate={handleVehicleUpdate}>
+              <Button>
+                Añadir Vehículo
+              </Button>
+            </AddVehicleDialog>
         </div>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {vehicles.map((vehicle: Vehicle) => (
@@ -50,7 +68,7 @@ export default function VehiclesPage() {
                         </div>
                     </CardContent>
                     <CardFooter>
-                        <AddVehicleDialog vehicle={vehicle}>
+                        <AddVehicleDialog vehicle={vehicle} onVehicleUpdate={handleVehicleUpdate}>
                             <Button variant="outline" className="w-full">
                                 <Car className='mr-2' />
                                 Gestionar Vehículo

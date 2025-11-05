@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -26,7 +27,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { vehicles } from '@/lib/data'; // For mock mutation
 import type { Vehicle } from '@/lib/types';
 
 const formSchema = z.object({
@@ -43,9 +43,10 @@ type FormValues = z.infer<typeof formSchema>;
 interface AddVehicleDialogProps {
     vehicle?: Vehicle;
     children?: React.ReactNode;
+    onVehicleUpdate: (vehicle: Vehicle) => void;
 }
 
-export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialogProps) {
+export default function AddVehicleDialog({ vehicle, children, onVehicleUpdate }: AddVehicleDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -67,25 +68,21 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     setIsSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    if (isEditing) {
-        // Find and update the vehicle
-        const vehicleIndex = vehicles.findIndex(v => v.id === vehicle.id);
-        if (vehicleIndex !== -1) {
-            vehicles[vehicleIndex] = { ...vehicles[vehicleIndex], ...values };
-        }
+    if (isEditing && vehicle) {
+        const updatedVehicle = { ...vehicle, ...values };
+        onVehicleUpdate(updatedVehicle);
         toast({
             title: 'Vehículo Actualizado',
             description: `Tu ${values.make} ${values.model} ha sido actualizado.`,
         });
     } else {
-        // Add new vehicle
         const newVehicle: Vehicle = {
             id: `vehicle-${Date.now()}`,
             imageUrl: `https://picsum.photos/seed/${Date.now()}/600/400`,
             imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
             ...values,
         };
-        vehicles.push(newVehicle); // Mutating mock data
+        onVehicleUpdate(newVehicle);
         toast({
             title: 'Vehículo Añadido',
             description: `Tu ${values.make} ${values.model} ha sido añadido a tu garaje.`,
@@ -94,8 +91,9 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
 
     setIsSubmitting(false);
     setOpen(false);
-    // In a real app with server state, you would re-fetch data instead of reloading.
-    window.location.reload();
+    if (!isEditing) {
+        form.reset();
+    }
   }
 
   return (
