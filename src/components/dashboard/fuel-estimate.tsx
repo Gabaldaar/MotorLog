@@ -26,7 +26,7 @@ export default function FuelEstimate({ vehicle }: FuelEstimateProps) {
     setLoading(true);
     setResult(null);
     try {
-      const output = await ai.estimateFuelStop.run({
+      const output = await ai.estimateFuelStop({
         vehicleMake: vehicle.make,
         vehicleModel: vehicle.model,
         vehicleYear: vehicle.year,
