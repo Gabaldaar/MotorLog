@@ -136,7 +136,15 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
     });
     setIsSubmitting(false);
     setOpen(false);
-    form.reset();
+    form.reset({
+      date: new Date(),
+      odometer: undefined,
+      totalCost: undefined,
+      liters: undefined,
+      pricePerLiter: undefined,
+      fuelType: 'Gasolina',
+      gasStation: '',
+    });
   }
 
   return (
@@ -164,7 +172,7 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
                     <FormItem>
                     <FormLabel>Odómetro (km)</FormLabel>
                     <FormControl>
-                        <Input type="number" placeholder="e.g., 25142" {...field} />
+                        <Input type="number" placeholder="e.g., 25142" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
@@ -221,7 +229,7 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
                   <FormItem>
                     <FormLabel>Costo Total</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="$" {...field} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
+                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -234,7 +242,7 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
                   <FormItem>
                     <FormLabel>Litros</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="L" {...field} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
+                      <Input type="number" step="0.01" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -247,7 +255,7 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
                   <FormItem>
                     <FormLabel>$/Litro</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="$" {...field} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
+                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -285,7 +293,7 @@ export default function AddFuelLogDialog({ vehicleId }: AddFuelLogDialogProps) {
                     <FormItem>
                     <FormLabel>Gasolinera (Opcional)</FormLabel>
                     <FormControl>
-                        <Input placeholder="e.g., Shell" {...field} />
+                        <Input placeholder="e.g., Shell" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                     </FormItem>
