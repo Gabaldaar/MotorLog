@@ -23,10 +23,7 @@ export default function ServicesPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 29),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const remindersQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -49,12 +46,14 @@ export default function ServicesPage() {
   const { data: lastFuelLog, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
 
   const filteredReminders = useMemo(() => {
-    if (!reminders || !dateRange?.from || !dateRange?.to) return [];
+    if (!reminders) return [];
+    if (!dateRange?.from || !dateRange?.to) return reminders;
+
     const from = startOfDay(dateRange.from);
     const to = endOfDay(dateRange.to);
     return reminders.filter(r => {
       const targetDate = r.isCompleted ? r.completedDate : r.dueDate;
-      if (!targetDate) return true; // Always show reminders without a date
+      if (!targetDate) return true; // Always show reminders without a date if no filter is applied
       const reminderDate = new Date(targetDate);
       return reminderDate >= from && reminderDate <= to;
     });
@@ -268,7 +267,7 @@ export default function ServicesPage() {
             ) : (
               <div className="flex flex-col items-center justify-center h-48 rounded-lg border-2 border-dashed">
                 <Wrench className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-muted-foreground">No hay recordatorios de servicio en este período.</p>
+                <p className="mt-4 text-muted-foreground">No hay recordatorios de servicio.</p>
               </div>
             )}
         </div>

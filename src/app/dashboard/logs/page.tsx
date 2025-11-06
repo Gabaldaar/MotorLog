@@ -53,10 +53,7 @@ export default function LogsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { consumptionUnit, getFormattedConsumption } = usePreferences();
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 29),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -69,7 +66,9 @@ export default function LogsPage() {
   const { data: fuelLogs, isLoading } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
   
   const filteredLogs = useMemo(() => {
-    if (!fuelLogs || !dateRange?.from || !dateRange?.to) return [];
+    if (!fuelLogs) return [];
+    if (!dateRange?.from || !dateRange?.to) return fuelLogs;
+
     const from = startOfDay(dateRange.from);
     const to = endOfDay(dateRange.to);
     return fuelLogs.filter(log => {
@@ -189,7 +188,7 @@ export default function LogsPage() {
              <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">
                 <Fuel className="h-12 w-12 text-muted-foreground" />
                 <p className="mt-4 font-semibold">No hay registros de combustible.</p>
-                <p className="text-sm text-muted-foreground">Añade tu primera recarga o ajusta el filtro de fecha.</p>
+                <p className="text-sm text-muted-foreground">Añade tu primera recarga para empezar.</p>
             </div>
         )}
     </div>

@@ -91,10 +91,7 @@ export default function HistoryPage() {
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
   const [estimate, setEstimate] = useState<EstimateFuelStopOutput | null>(null);
   const [isLoadingEstimate, setIsLoadingEstimate] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 29),
-    to: new Date(),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -173,23 +170,20 @@ export default function HistoryPage() {
 
 
   const timelineItems = useMemo((): TimelineHistoryItem[] => {
-    if (!fuelLogs && !serviceReminders && !trips) return [];
-    if (!dateRange?.from || !dateRange?.to) return [];
-    const from = startOfDay(dateRange.from);
-    const to = endOfDay(dateRange.to);
-
     const combined: TimelineHistoryItem[] = [];
 
+    const from = dateRange?.from ? startOfDay(dateRange.from) : null;
+    const to = dateRange?.to ? endOfDay(dateRange.to) : null;
+
     (fuelLogs || []).forEach(log => {
-      const logDate = new Date(log.date);
-      if (logDate >= from && logDate <= to) {
+      if (!from || !to || (new Date(log.date) >= from && new Date(log.date) <= to)) {
         combined.push({ type: 'fuel', sortKey: log.odometer, date: log.date, data: log });
       }
     });
 
     (serviceReminders || []).forEach(reminder => {
       const targetDate = reminder.isCompleted ? reminder.completedDate : reminder.dueDate;
-      if (targetDate) {
+      if (from && to && targetDate) {
         const reminderDate = new Date(targetDate);
         if (reminderDate < from || reminderDate > to) {
           return; // Skip if out of range
@@ -238,8 +232,7 @@ export default function HistoryPage() {
 
     (trips || []).forEach(trip => {
       if (trip.status === 'completed' && trip.endDate && trip.endOdometer) {
-         const tripDate = new Date(trip.endDate);
-         if (tripDate >= from && tripDate <= to) {
+        if (!from || !to || (new Date(trip.endDate) >= from && new Date(trip.endDate) <= to)) {
             combined.push({ type: 'trip', sortKey: trip.endOdometer, date: trip.endDate, data: trip });
          }
       }
