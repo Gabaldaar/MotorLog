@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Car, Fuel, LayoutDashboard, Leaf, LogOut, Settings, Wrench, History, Route } from 'lucide-react';
+import { Car, Fuel, Menu, LogOut, Settings, Wrench, History, Route } from 'lucide-react';
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
@@ -22,7 +22,7 @@ import {
 import { Button } from '../ui/button';
 
 const menuItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Inicio', icon: Menu },
   { href: '/dashboard/logs', label: 'Registros', icon: Fuel },
   { href: '/dashboard/services', label: 'Servicios', icon: Wrench },
   { href: '/dashboard/history', label: 'Historial', icon: History },
