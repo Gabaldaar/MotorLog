@@ -73,10 +73,10 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                     )}
                     {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
                     {estimate && !isLoading && (
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-sm text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
                         <span>Autonomía est: <b>{Math.round(estimate.estimatedDistanceToEmptyKm)} km</b></span>
-                        <span className="mx-2">|</span>
-                        <span>Próxima recarga: <b>{formatDate(estimate.estimatedRefuelDate)}</b></span>
+                        <span>Próx. recarga: <b>{formatDate(estimate.estimatedRefuelDate)}</b></span>
+                        <span>Odómetro est: <b>{Math.round(estimate.estimatedOdometerAtEmpty).toLocaleString()} km</b></span>
                     </div>
                     )}
                 </div>
