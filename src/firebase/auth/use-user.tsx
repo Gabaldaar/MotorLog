@@ -1,6 +1,7 @@
 'use client';
 
-import { useFirebase, type UserHookResult } from '@/firebase';
+import { useContext } from 'react';
+import { FirebaseContext, type UserHookResult } from '@/firebase/provider';
 
 /**
  * Hook specifically for accessing the authenticated user's state.
@@ -8,6 +9,11 @@ import { useFirebase, type UserHookResult } from '@/firebase';
  * @returns {UserHookResult} Object with user, isUserLoading, userError.
  */
 export const useUser = (): UserHookResult => {
-  const { user, isUserLoading, userError } = useFirebase(); // Leverages the main hook
+  const context = useContext(FirebaseContext);
+  if (context === undefined) {
+    // This might happen if used outside the provider, so we return a "loading" state.
+    return { user: null, isUserLoading: true, userError: null };
+  }
+  const { user, isUserLoading, userError } = context; 
   return { user, isUserLoading, userError };
 };

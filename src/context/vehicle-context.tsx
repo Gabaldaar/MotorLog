@@ -1,10 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import type { Vehicle } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 interface VehicleContextType {
   vehicles: Vehicle[];
@@ -16,51 +16,59 @@ interface VehicleContextType {
 const VehicleContext = createContext<VehicleContextType | undefined>(undefined);
 
 export const VehicleProvider = ({ children }: { children: ReactNode }) => {
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const { user } = useUser();
   const firestore = useFirestore();
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!user || !firestore) return null;
+    // Query the top-level 'vehicles' collection
     return query(collection(firestore, 'vehicles'), orderBy('make'));
   }, [firestore, user]);
 
   const { data: vehicles, isLoading } = useCollection<Vehicle>(vehiclesQuery);
-  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (isLoading || !vehicles) {
-      return;
-    }
+    if (isLoading || !vehicles) return;
 
-    const vehicleIdFromUrl = searchParams.get('vehicle');
-    let vehicleToSelect: Vehicle | null = null;
-
-    if (vehicleIdFromUrl) {
-      vehicleToSelect = vehicles.find(v => v.id === vehicleIdFromUrl) || null;
+    const currentVehicleId = searchParams.get('vehicle');
+    
+    if (currentVehicleId) {
+      const vehicleFromUrl = vehicles.find(v => v.id === currentVehicleId);
+      if (vehicleFromUrl) {
+        if (selectedVehicle?.id !== vehicleFromUrl.id) {
+          setSelectedVehicle(vehicleFromUrl);
+        }
+        return; 
+      }
     }
     
-    if (!vehicleToSelect && vehicles.length > 0) {
-      vehicleToSelect = vehicles[0];
-    }
-    
-    setSelectedVehicle(vehicleToSelect);
-
-    const currentParams = new URLSearchParams(searchParams.toString());
-    const currentVehicleParam = currentParams.get('vehicle');
-
-    if (vehicleToSelect && currentVehicleParam !== vehicleToSelect.id) {
-      currentParams.set('vehicle', vehicleToSelect.id);
-      router.replace(`${pathname}?${currentParams.toString()}`);
-    } else if (!vehicleToSelect && currentVehicleParam) {
-      currentParams.delete('vehicle');
-      router.replace(`${pathname}?${currentParams.toString()}`);
+    if(selectedVehicle && vehicles.some(v => v.id === selectedVehicle.id)) {
+        return;
     }
 
-  }, [vehicles, isLoading, searchParams, pathname, router]);
+    if (vehicles.length > 0) {
+      const vehicleToSelect = vehicles[0];
+      setSelectedVehicle(vehicleToSelect);
+      if (currentVehicleId !== vehicleToSelect.id) {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('vehicle', vehicleToSelect.id);
+        router.replace(`${pathname}?${params.toString()}`);
+      }
+    } else {
+      setSelectedVehicle(null);
+      const params = new URLSearchParams(searchParams.toString());
+      if (params.has('vehicle')) {
+          params.delete('vehicle');
+          router.replace(`${pathname}?${params.toString()}`);
+      }
+    }
+  }, [searchParams, vehicles, pathname, router, isLoading, selectedVehicle]);
 
   const selectVehicle = (vehicleId: string) => {
     const vehicle = vehicles?.find(v => v.id === vehicleId);

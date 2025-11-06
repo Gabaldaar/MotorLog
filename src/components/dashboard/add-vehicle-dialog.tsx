@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Car } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -39,7 +39,7 @@ const formSchema = z.object({
   plate: z.string().min(1, 'La patente es obligatoria.'),
   fuelCapacityLiters: z.coerce.number().min(1, 'La capacidad del tanque es obligatoria.'),
   averageConsumptionKmPerLiter: z.coerce.number().min(1, 'El consumo es obligatorio.'),
-  imageUrl: z.string().url('URL inválida.').optional().or(z.literal('')),
+  imageUrl: z.string().url('URL de imagen inválida.').optional().or(z.literal('')),
   defaultFuelType: z.string({
     required_error: 'El tipo de combustible es obligatorio.',
   }),
@@ -93,13 +93,15 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     setIsSubmitting(true);
     
     const vehicleId = isEditing ? vehicle.id : doc(collection(firestore, '_')).id;
+    // Save to the top-level 'vehicles' collection
     const vehicleRef = doc(firestore, 'vehicles', vehicleId);
     
     const vehicleData = {
         ...values,
         id: vehicleId,
-        imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
+        // No longer storing userId, as it's a shared resource
         imageUrl: values.imageUrl || `https://picsum.photos/seed/${vehicleId}/600/400`,
+        imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
     };
 
     setDocumentNonBlocking(vehicleRef, vehicleData, { merge: true });
@@ -233,10 +235,10 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                 <FormItem>
                   <FormLabel>URL de la Imagen (Opcional)</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="text"
+                    <Input
                       placeholder="https://example.com/image.png"
                       {...field}
+                      value={field.value ?? ''}
                     />
                   </FormControl>
                   <FormMessage />

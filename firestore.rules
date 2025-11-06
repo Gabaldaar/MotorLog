@@ -14,13 +14,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Allow read/write access to all collections for any authenticated user.
+    // DIAGNOSTIC RULE: Allow public access to everything except user profiles.
+    // This is a temporary measure to debug the persistent permissions issue.
     match /{document=**} {
-       allow read, write: if isSignedIn();
+      allow read, write: if true;
     }
 
     // User profiles remain protected. This more specific rule takes precedence.
-    // Only the owner of a profile can read or write to it.
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }

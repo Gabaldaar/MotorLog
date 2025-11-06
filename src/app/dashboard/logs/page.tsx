@@ -1,10 +1,11 @@
+
 'use client';
 
 import type { ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { formatDate } from '@/lib/utils';
 import AddFuelLogDialog from '@/components/dashboard/add-fuel-log-dialog';
-import { useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,7 @@ export default function LogsPage() {
   const { consumptionUnit, getFormattedConsumption } = usePreferences();
 
   const fuelLogsQuery = useMemoFirebase(() => {
-    if (!user || !vehicle || !firestore) return null;
+    if (!user || !vehicle) return null;
     return query(
       collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
       orderBy('date', 'desc')

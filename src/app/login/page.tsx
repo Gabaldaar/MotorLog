@@ -42,12 +42,12 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'El servicio de autenticación no está disponible.',
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Servicio de autenticación no disponible.',
+      });
+      return;
     }
     setIsLoading(true);
     try {
@@ -113,7 +113,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || !auth}>
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Ingresar
               </Button>

@@ -65,7 +65,7 @@ export default function DeleteVehicleDialog({
           <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
           <AlertDialogDescription>
             Esta acción no se puede deshacer. Se eliminará permanentemente tu{' '}
-            <span className="font-semibold">{vehicle.make} {vehicle.model}</span> y todos sus datos asociados (recargas, servicios, etc.).
+            <span className="font-semibold">{vehicle.make} {vehicle.model}</span> de la base de datos.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -26,22 +26,22 @@ export default function SettingsPage() {
 
   // Queries now point to top-level collections
   const fuelTypesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user) return null;
     return query(collection(firestore, 'fuel_types'), orderBy('name'));
   }, [firestore, user]);
 
   const serviceTypesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user) return null;
     return query(collection(firestore, 'service_types'), orderBy('name'));
   }, [firestore, user]);
 
   const gasStationsQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user) return null;
     return query(collection(firestore, 'gas_stations'), orderBy('name'));
   }, [firestore, user]);
   
   const tripTypesQuery = useMemoFirebase(() => {
-    if (!user || !firestore) return null;
+    if (!user) return null;
     return query(collection(firestore, 'trip_types'), orderBy('name'));
   }, [firestore, user]);
 

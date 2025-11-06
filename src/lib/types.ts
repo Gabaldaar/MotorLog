@@ -8,7 +8,7 @@ export type Vehicle = {
   plate: string;
   fuelCapacityLiters: number;
   averageConsumptionKmPerLiter: number;
-  imageUrl?: string;
+  imageUrl: string;
   imageHint?: string;
   defaultFuelType?: string;
 };

@@ -18,7 +18,7 @@ import { Leaf, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
+import { setDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -48,12 +48,12 @@ export default function SignupPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!auth || !firestore) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Los servicios de Firebase no están disponibles.',
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Servicios de Firebase no disponibles.',
+      });
+      return;
     }
     setIsLoading(true);
     try {
@@ -142,7 +142,7 @@ export default function SignupPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading || !auth}>
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Registrarse
               </Button>

@@ -10,7 +10,7 @@ import type { EstimateFuelStopOutput } from '@/ai/flows/estimate-fuel-stop';
 import { useToast } from '@/hooks/use-toast';
 import { ai } from '@/ai/client';
 import { formatDate } from '@/lib/utils';
-import { Loader2, Wrench, Car } from 'lucide-react';
+import { Loader2, Wrench } from 'lucide-react';
 import AddServiceReminderDialog from './add-service-reminder-dialog';
 import { Button } from '../ui/button';
 
@@ -98,8 +98,8 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                    </div>
                 </CardContent>
             </div>
-             <div className="relative md:w-1/3 min-h-[200px] md:min-h-0 bg-muted/30 flex items-center justify-center">
-                {vehicle.imageUrl ? (
+             {vehicle.imageUrl && (
+                <div className="relative md:w-1/3 min-h-[200px] md:min-h-0 bg-black/5">
                     <Image
                         src={vehicle.imageUrl}
                         alt={`${vehicle.make} ${vehicle.model}`}
@@ -107,10 +107,8 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                         className="object-contain"
                         data-ai-hint={vehicle.imageHint}
                     />
-                ) : (
-                    <Car className="h-24 w-24 text-muted-foreground" />
-                )}
-            </div>
+                </div>
+            )}
         </div>
     </Card>
   );

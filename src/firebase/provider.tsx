@@ -4,13 +4,13 @@ import React, { DependencyList, createContext, useContext, ReactNode, useMemo, u
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 
 interface FirebaseProviderProps {
   children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
 }
 
 // Internal state for user authentication
@@ -69,23 +69,25 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Effect to subscribe to Firebase auth state changes
   useEffect(() => {
-    if (!auth) { 
+    if (!auth) { // If no Auth service instance, cannot determine user state
       setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
       return;
     }
 
+    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
+
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { 
+      (firebaseUser) => { // Auth state determined
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
-      (error) => { 
+      (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
         setUserAuthState({ user: null, isUserLoading: false, userError: error });
       }
     );
-    return () => unsubscribe(); 
-  }, [auth]); 
+    return () => unsubscribe(); // Cleanup
+  }, [auth]); // Depends on the auth instance
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
@@ -121,7 +123,10 @@ export const useFirebase = (): FirebaseServicesAndUser => {
   }
 
   if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
+    // This check now primarily ensures the provider has been rendered with valid props,
+    // which it always should be from FirebaseClientProvider.
+    // It's safe to assume services are available if the context is there.
+    throw new Error('Firebase core services not available. This is unexpected.');
   }
 
   return {
@@ -134,22 +139,31 @@ export const useFirebase = (): FirebaseServicesAndUser => {
   };
 };
 
-/** Hook to access Firebase Auth instance. */
+/** Hook to access Firebase Auth instance. Returns null if not available. */
 export const useAuth = (): Auth | null => {
-  return useContext(FirebaseContext)?.auth ?? null;
+  const context = useContext(FirebaseContext);
+  return context?.auth || null;
 };
 
-/** Hook to access Firestore instance. */
+/** Hook to access Firestore instance. Returns null if not available. */
 export const useFirestore = (): Firestore | null => {
-  return useContext(FirebaseContext)?.firestore ?? null;
+  const context = useContext(FirebaseContext);
+  return context?.firestore || null;
 };
 
-/** Hook to access Firebase App instance. */
+/** Hook to access Firebase App instance. Returns null if not available. */
 export const useFirebaseApp = (): FirebaseApp | null => {
-  return useContext(FirebaseContext)?.firebaseApp ?? null;
+  const context = useContext(FirebaseContext);
+  return context?.firebaseApp || null;
 };
 
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T {
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(factory, deps);
+type MemoFirebase <T> = T & {__memo?: boolean};
+
+export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
+  const memoized = useMemo(factory, deps);
+  
+  if(typeof memoized !== 'object' || memoized === null) return memoized;
+  (memoized as MemoFirebase<T>).__memo = true;
+  
+  return memoized;
 }
