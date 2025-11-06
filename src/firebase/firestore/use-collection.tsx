@@ -58,7 +58,7 @@ export function useCollection<T = any>(
   type StateDataType = ResultItemType[] | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
@@ -67,6 +67,10 @@ export function useCollection<T = any>(
       setIsLoading(false);
       setError(null);
       return;
+    }
+
+    if (!memoizedTargetRefOrQuery.__memo) {
+        throw new Error('useCollection query must be memoized with useMemoFirebase');
     }
 
     setIsLoading(true);
@@ -106,9 +110,8 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
-  }
+  
   return { data, isLoading, error };
 }
