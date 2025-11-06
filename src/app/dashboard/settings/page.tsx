@@ -19,6 +19,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Droplets, Wrench, Building, SlidersHorizontal, Route } from 'lucide-react';
 import PreferencesSettings from '@/components/settings/preferences-settings';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function SettingsPage() {
   const { user } = useUser();
@@ -60,14 +61,16 @@ export default function SettingsPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="preferences" className="grid grid-cols-1">
-          <TabsList className="grid w-full grid-cols-1 sm:grid-cols-5">
-            <TabsTrigger value="preferences"><SlidersHorizontal className="mr-2" />Preferencias</TabsTrigger>
-            <TabsTrigger value="fuel"><Droplets className="mr-2" />Combustibles</TabsTrigger>
-            <TabsTrigger value="services"><Wrench className="mr-2" />Servicios</TabsTrigger>
-            <TabsTrigger value="stations"><Building className="mr-2" />Gasolineras</TabsTrigger>
-            <TabsTrigger value="trips"><Route className="mr-2" />Tipos de Viaje</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="preferences">
+          <ScrollArea className="w-full whitespace-nowrap sm:whitespace-normal">
+            <TabsList className="grid w-full grid-cols-1 sm:grid-cols-5">
+              <TabsTrigger value="preferences"><SlidersHorizontal className="mr-2 h-4 w-4" />Preferencias</TabsTrigger>
+              <TabsTrigger value="fuel"><Droplets className="mr-2 h-4 w-4" />Combustibles</TabsTrigger>
+              <TabsTrigger value="services"><Wrench className="mr-2 h-4 w-4" />Servicios</TabsTrigger>
+              <TabsTrigger value="stations"><Building className="mr-2 h-4 w-4" />Gasolineras</TabsTrigger>
+              <TabsTrigger value="trips"><Route className="mr-2 h-4 w-4" />Tipos de Viaje</TabsTrigger>
+            </TabsList>
+          </ScrollArea>
           <TabsContent value="preferences">
             <PreferencesSettings />
           </TabsContent>
