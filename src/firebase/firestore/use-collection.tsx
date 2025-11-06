@@ -52,7 +52,7 @@ export interface InternalQuery extends Query<DocumentData> {
  * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
  */
 export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
+    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>))  | null | undefined,
 ): UseCollectionResult<T> {
   type ResultItemType = WithId<T>;
   type StateDataType = ResultItemType[] | null;
@@ -67,10 +67,6 @@ export function useCollection<T = any>(
       setIsLoading(false);
       setError(null);
       return;
-    }
-
-    if (!memoizedTargetRefOrQuery.__memo) {
-        throw new Error('useCollection query must be memoized with useMemoFirebase');
     }
 
     setIsLoading(true);
