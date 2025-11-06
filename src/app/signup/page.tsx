@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Leaf, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore } from '@/firebase/provider';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { setDoc, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';

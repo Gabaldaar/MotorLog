@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import type { Trip, ProcessedFuelLog, Vehicle } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Route, Loader2 } from 'lucide-react';

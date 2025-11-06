@@ -8,7 +8,8 @@ import { Plus, Wrench, Calendar, Gauge, Edit, AlertTriangle, CheckCircle2, Repea
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import AddServiceReminderDialog from '@/components/dashboard/add-service-reminder-dialog';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
 import { cn } from '@/lib/utils';

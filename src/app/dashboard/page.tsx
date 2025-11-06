@@ -8,7 +8,8 @@ import FuelConsumptionChart from '@/components/dashboard/fuel-consumption-chart'
 import ServiceReminders from '@/components/dashboard/service-reminders';
 import RecentFuelLogs from '@/components/dashboard/recent-fuel-logs';
 import { useVehicles } from '@/context/vehicle-context';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase } from '@/firebase/provider';
+import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';

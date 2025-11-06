@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase/provider';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc } from 'firebase/firestore';
 import type { ConfigItem } from '@/lib/types';

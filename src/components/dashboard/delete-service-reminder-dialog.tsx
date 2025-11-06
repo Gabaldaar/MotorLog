@@ -16,18 +16,20 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase/provider';
 import { doc } from 'firebase/firestore';
 import { deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 interface DeleteServiceReminderDialogProps {
   vehicleId: string;
   reminderId: string;
+  children: React.ReactNode;
 }
 
 export default function DeleteServiceReminderDialog({
   vehicleId,
   reminderId,
+  children
 }: DeleteServiceReminderDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,10 +62,7 @@ export default function DeleteServiceReminderDialog({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="outline" size="icon" className="text-destructive hover:text-destructive">
-            <Trash2 className="h-4 w-4" />
-            <span className="sr-only">Eliminar</span>
-        </Button>
+        {children}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

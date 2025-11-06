@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/app-header';
 import AppSidebar from '@/components/layout/app-sidebar';
 import { Sidebar, SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { VehicleProvider } from '@/context/vehicle-context';
-import { useUser } from '@/firebase';
+import { useUser } from '@/firebase/provider';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
