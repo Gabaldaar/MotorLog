@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Car, Fuel, Wrench, Gauge, Calendar, DollarSign, Route, TrendingUp, Droplets, AlertTriangle } from 'lucide-react';
 import { ReportStatCard } from '@/components/reports/report-stat-card';
 import { EvolutionChart } from '@/components/reports/evolution-chart';
+import FuelConsumptionChart from '@/components/dashboard/fuel-consumption-chart';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
   const sortedLogsAsc = logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -197,13 +198,14 @@ export default function ReportsPage() {
 
           {/* Charts */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <FuelConsumptionChart data={reportData.fuelLogs} />
             <EvolutionChart 
-              title="Evolución del Consumo" 
+              title="Evolución del Consumo (Rendimiento)" 
               data={reportData.fuelLogs.filter(log => log.consumption && log.consumption > 0)}
               dataKey="date"
               valueKey="consumption"
-              valueFormatter={(val) => `${toLitersPer100Km(val).toFixed(2)} L/100km`}
-              tooltipLabel="Consumo"
+              valueFormatter={(val) => `${val.toFixed(2)} km/L`}
+              tooltipLabel="Rendimiento"
               icon={TrendingUp}
             />
             <EvolutionChart 

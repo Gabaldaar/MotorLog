@@ -26,8 +26,8 @@ export default function FuelConsumptionChart({ data }: FuelConsumptionChartProps
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="font-headline">Análisis de Consumo</CardTitle>
-        <CardDescription>Rendimiento de combustible ({consumptionUnit}) por recarga.</CardDescription>
+        <CardTitle className="font-headline">Rendimiento por Recarga</CardTitle>
+        <CardDescription>Rendimiento de combustible ({consumptionUnit}) en cada recarga.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
