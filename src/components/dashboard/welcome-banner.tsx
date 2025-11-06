@@ -79,7 +79,7 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                       {vehicle && <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle} />}
                       {vehicle && (
                         <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastLog?.odometer}>
-                          <Button variant="outline">
+                          <Button variant="secondary">
                             <Wrench className="mr-2 h-4 w-4" />
                             Añadir Recordatorio
                           </Button>
