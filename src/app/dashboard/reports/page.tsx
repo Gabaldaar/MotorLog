@@ -103,12 +103,14 @@ export default function ReportsPage() {
     
     const kmPerDay = kmTraveled / periodDays;
 
+    const avgAutonomy = avgConsumption > 0 ? avgConsumption * vehicle.fuelCapacityLiters : 0;
+
     return {
       totalCost, totalFuelCost, totalServiceCost, kmTraveled,
       costPerKm, fuelCostPerKm, serviceCostPerKm,
       costPerDay, fuelCostPerDay, serviceCostPerDay,
       avgConsumption, minConsumption, maxConsumption,
-      kmPerDay, fuelLogs, empty: false,
+      kmPerDay, fuelLogs, avgAutonomy, empty: false,
     };
   }, [dateRange, vehicle, allFuelLogsData, allServicesData]);
 
@@ -172,6 +174,7 @@ export default function ReportsPage() {
               <CardTitle className="flex items-center gap-2"><Gauge/> Análisis de Consumo y Distancia</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <ReportStatCard title="Autonomía Promedio" value={`${reportData.avgAutonomy.toFixed(0)} km`} description="con tanque lleno" variant="small" />
                 <ReportStatCard title="Consumo Promedio" value={`${reportData.avgConsumption.toFixed(2)} km/L`} description={`${toLitersPer100Km(reportData.avgConsumption).toFixed(2)} L/100km`} variant="small" />
                 <ReportStatCard title="Consumo Mínimo (Mejor)" value={`${reportData.maxConsumption.toFixed(2)} km/L`} description={`${toLitersPer100Km(reportData.maxConsumption).toFixed(2)} L/100km`} variant="small" />
                 <ReportStatCard title="Consumo Máximo (Peor)" value={`${reportData.minConsumption.toFixed(2)} km/L`} description={`${toLitersPer100Km(reportData.minConsumption).toFixed(2)} L/100km`} variant="small" />
