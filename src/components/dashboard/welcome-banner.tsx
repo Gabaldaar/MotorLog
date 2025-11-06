@@ -99,12 +99,12 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                 </CardContent>
             </div>
              {vehicle.imageUrl && (
-                <div className="relative md:w-1/3 min-h-[200px] md:min-h-0">
+                <div className="relative md:w-1/3 min-h-[200px] md:min-h-0 bg-black/5">
                     <Image
                         src={vehicle.imageUrl}
                         alt={`${vehicle.make} ${vehicle.model}`}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         data-ai-hint={vehicle.imageHint}
                     />
                 </div>
