@@ -3,7 +3,7 @@
 
 import Image from 'next/image';
 import type { Vehicle, ProcessedFuelLog } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import AddFuelLogDialog from './add-fuel-log-dialog';
 import { useEffect, useState } from 'react';
 import type { EstimateFuelStopOutput } from '@/ai/flows/estimate-fuel-stop';
@@ -60,47 +60,43 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
   return (
     <Card className="overflow-hidden">
         <div className="flex flex-col">
-            <div className="p-6 pb-4">
-                <CardHeader className="p-0">
-                    <CardTitle className="font-headline text-3xl">
-                        {vehicle.make} {vehicle.model}
-                    </CardTitle>
-                    <CardDescription className="text-base">
-                        {vehicle.year} - {vehicle.plate}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 pt-6">
-                    <div className="flex flex-wrap items-center gap-4">
-                      {vehicle && <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle} />}
-                      {vehicle && (
-                        <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastLog?.odometer}>
-                          <Button variant="secondary">
-                            <Wrench className="mr-2 h-4 w-4" />
-                            Añadir Recordatorio
-                          </Button>
-                        </AddServiceReminderDialog>
-                      )}
-                      {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
-                      {estimate && !isLoading && (
-                        <div className="text-sm text-muted-foreground">
-                            <span>Autonomía est: <b>{Math.round(estimate.estimatedDistanceToEmptyKm)} km</b></span>
-                            <span className="mx-2">|</span>
-                            <span>Próxima recarga: <b>{formatDate(estimate.estimatedRefuelDate)}</b></span>
-                        </div>
-                      )}
-                   </div>
-                </CardContent>
-            </div>
-             {vehicle.imageUrl && (
-                <div className="relative w-full h-48 sm:h-64 bg-black/5">
-                    <Image
-                        src={vehicle.imageUrl}
-                        alt={`${vehicle.make} ${vehicle.model}`}
-                        fill
-                        className="object-cover"
-                        data-ai-hint={vehicle.imageHint}
-                    />
+            <CardContent className="p-6">
+                <div className="flex flex-wrap items-center gap-4">
+                    {vehicle && <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle} />}
+                    {vehicle && (
+                    <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastLog?.odometer}>
+                        <Button variant="secondary">
+                        <Wrench className="mr-2 h-4 w-4" />
+                        Añadir Recordatorio
+                        </Button>
+                    </AddServiceReminderDialog>
+                    )}
+                    {isLoading && <Loader2 className="h-5 w-5 animate-spin" />}
+                    {estimate && !isLoading && (
+                    <div className="text-sm text-muted-foreground">
+                        <span>Autonomía est: <b>{Math.round(estimate.estimatedDistanceToEmptyKm)} km</b></span>
+                        <span className="mx-2">|</span>
+                        <span>Próxima recarga: <b>{formatDate(estimate.estimatedRefuelDate)}</b></span>
+                    </div>
+                    )}
                 </div>
+            </CardContent>
+            
+            {vehicle.imageUrl && (
+            <div className="relative w-full h-48 sm:h-64 bg-black/5">
+                <Image
+                    src={vehicle.imageUrl}
+                    alt={`${vehicle.make} ${vehicle.model}`}
+                    fill
+                    className="object-cover"
+                    data-ai-hint={vehicle.imageHint}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 p-6">
+                    <h2 className="font-headline text-3xl text-white shadow-lg">{vehicle.make} {vehicle.model}</h2>
+                    <p className="text-white/90 text-base">{vehicle.year} - {vehicle.plate}</p>
+                </div>
+            </div>
             )}
         </div>
     </Card>
