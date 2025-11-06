@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import type { ProcessedFuelLog, ServiceReminder, TimelineItem, ProcessedServiceReminder, Vehicle, Trip } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -46,10 +46,10 @@ import { DateRangePicker } from '@/components/reports/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 
 type TimelineHistoryItem = {
-    type: 'fuel' | 'service' | 'trip';
+    type: 'fuel' | 'service' | 'trip' | 'missed-log';
     sortKey: number; // Odometer or timestamp
     date: string;
-    data: ProcessedFuelLog | ProcessedServiceReminder | Trip;
+    data: ProcessedFuelLog | ProcessedServiceReminder | Trip | {};
 };
 
 function processFuelLogsForAvg(logs: ProcessedFuelLog[]): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
@@ -178,6 +178,9 @@ export default function HistoryPage() {
 
     (fuelLogs || []).forEach(log => {
       if (!from || !to || (new Date(log.date) >= from && new Date(log.date) <= to)) {
+        if (log.missedPreviousFillUp) {
+            combined.push({ type: 'missed-log', sortKey: log.odometer + 1, date: log.date, data: {} });
+        }
         combined.push({ type: 'fuel', sortKey: log.odometer, date: log.date, data: log });
       }
     });
@@ -273,11 +276,12 @@ export default function HistoryPage() {
               {timelineItems.length > 0 ? (
                   <Accordion type="single" collapsible className="w-full">
                     {timelineItems.map((item, index) => (
-                      <AccordionItem value={`${item.type}-${'id' in item.data ? item.data.id : index}-${index}`} key={`${item.type}-${'id' in item.data ? item.data.id : index}-${index}`}>
-                          {item.type === 'fuel' && <FuelLogItemContent log={item.data as ProcessedFuelLog} vehicle={vehicle as Vehicle} lastLog={lastLogForNewEntry} />}
-                          {item.type === 'service' && <ServiceItemContent reminder={item.data as ProcessedServiceReminder} vehicleId={vehicle.id} lastOdometer={lastOdometer} />}
-                          {item.type === 'trip' && <TripItemContent trip={item.data as Trip} vehicle={vehicle as Vehicle} allFuelLogs={fuelLogs || []} />}
-                      </AccordionItem>
+                      <Fragment key={`${item.type}-${'id' in item.data ? item.data.id : index}-${index}`}>
+                        {item.type === 'missed-log' && <MissedLogPlaceholder />}
+                        {item.type === 'fuel' && 'id' in item.data && <AccordionItem value={`fuel-${item.data.id}`}><FuelLogItemContent log={item.data as ProcessedFuelLog} vehicle={vehicle as Vehicle} lastLog={lastLogForNewEntry} /></AccordionItem>}
+                        {item.type === 'service' && 'id' in item.data && <AccordionItem value={`service-${item.data.id}`}><ServiceItemContent reminder={item.data as ProcessedServiceReminder} vehicleId={vehicle.id} lastOdometer={lastOdometer} /></AccordionItem>}
+                        {item.type === 'trip' && 'id' in item.data && <AccordionItem value={`trip-${item.data.id}`}><TripItemContent trip={item.data as Trip} vehicle={vehicle as Vehicle} allFuelLogs={fuelLogs || []} /></AccordionItem>}
+                      </Fragment>
                     ))}
                   </Accordion>
               ) : (
@@ -294,6 +298,21 @@ export default function HistoryPage() {
   );
 }
 
+function MissedLogPlaceholder() {
+    return (
+        <Card className="bg-amber-500/10 border-amber-500/50 my-2">
+            <CardContent className="p-3">
+                <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0" />
+                    <div className="flex-1">
+                        <p className="font-semibold text-amber-800 dark:text-amber-200">Registro Omitido</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300">Falta un registro de recarga anterior a este punto.</p>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
 function FuelLogItemContent({ log, vehicle, lastLog }: { log: ProcessedFuelLog, vehicle: Vehicle, lastLog?: ProcessedFuelLog }) {
   return (
