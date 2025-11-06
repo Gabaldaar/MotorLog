@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -302,9 +303,18 @@ function FuelLogItemContent({ log, vehicle, lastLog }: { log: ProcessedFuelLog, 
             <Fuel className="h-8 w-8 flex-shrink-0 text-blue-500/80" />
             <div className="flex-1 min-w-0">
                 <p className="font-semibold">{formatDate(log.date)} - Recarga</p>
-                <p className="text-sm text-muted-foreground truncate">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L en {log.gasStation}</p>
+                <div className="flex items-center gap-2 mt-1">
+                    {log.missedPreviousFillUp ? (
+                        <Badge variant="destructive">Anterior omitida</Badge>
+                    ) : log.isFillUp ? (
+                        <Badge variant="secondary">Lleno</Badge>
+                    ) : (
+                        <Badge className="bg-amber-500/80 text-white">Parcial</Badge>
+                    )}
+                    <p className="text-sm text-muted-foreground truncate">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L</p>
+                </div>
             </div>
-            <div className="text-right">
+            <div className="text-right ml-auto">
                 <p className="font-semibold">{log.odometer.toLocaleString()} km</p>
                 <p className="text-xs text-muted-foreground">Odómetro</p>
             </div>

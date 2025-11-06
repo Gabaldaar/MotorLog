@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -113,14 +114,23 @@ export default function LogsPage() {
                   {processedLogs.map(log => (
                       <AccordionItem value={log.id} key={log.id}>
                           <AccordionTrigger className="px-6 py-4 text-left hover:no-underline">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 w-full">
                                 <Fuel className="h-8 w-8 flex-shrink-0 text-primary/80" />
                                 <div className="flex-1 flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                                    <div className="flex-1">
+                                    <div className="flex-1 min-w-0">
                                         <p className="font-semibold">{formatDate(log.date)}</p>
-                                        <p className="text-sm text-muted-foreground sm:hidden mt-1">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            {log.missedPreviousFillUp ? (
+                                                <Badge variant="destructive">Anterior omitida</Badge>
+                                            ) : log.isFillUp ? (
+                                                <Badge variant="secondary">Lleno</Badge>
+                                            ) : (
+                                                <Badge className="bg-amber-500/80 text-white">Parcial</Badge>
+                                            )}
+                                            <p className="text-sm text-muted-foreground sm:hidden truncate">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L</p>
+                                        </div>
                                     </div>
-                                    <div className="hidden sm:flex items-center gap-6 text-sm text-right">
+                                    <div className="hidden sm:flex items-center gap-6 text-sm text-right ml-4">
                                         <div className="flex-1">
                                             <p>${log.totalCost.toFixed(2)}</p>
                                             <p className="text-muted-foreground text-xs">{log.liters.toFixed(2)} L</p>
@@ -135,7 +145,6 @@ export default function LogsPage() {
                                         </div>
                                     </div>
                                 </div>
-                                {log.isFillUp && <Badge variant="secondary" className="ml-4 hidden sm:block">Lleno</Badge>}
                               </div>
                           </AccordionTrigger>
                           <AccordionContent className="px-6 pb-4">
