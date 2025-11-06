@@ -36,7 +36,7 @@ export default function EstimatedRefuelCard({ estimate, isLoading }: EstimatedRe
                 {isLoading ? 'Estimando próxima recarga...' : 'Próxima Recarga (Estimado)'}
               </p>
               {!isLoading && estimate && (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground hidden sm:block">
                   Basado en tu consumo promedio.
                 </p>
               )}
@@ -55,10 +55,10 @@ export default function EstimatedRefuelCard({ estimate, isLoading }: EstimatedRe
                         </p>
                     </div>
                      <div className='flex items-center gap-2'>
-                        <p className="font-medium flex items-center justify-end gap-2">
+                        <p className="font-semibold flex items-center justify-end gap-2">
                            ~{Math.round(estimate.estimatedDistanceToEmptyKm)} km
                         </p>
-                        <p className="text-xs text-muted-foreground flex items-center justify-end gap-2 mt-1">
+                        <p className="font-semibold flex items-center justify-end gap-2 mt-1">
                             {shortFormatDate(estimate.estimatedRefuelDate)}
                             <Calendar className="h-3 w-3" />
                         </p>
