@@ -1,6 +1,6 @@
-
 'use client';
 
+import { useMemo, useState } from 'react';
 import type { ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { formatDate } from '@/lib/utils';
@@ -14,6 +14,9 @@ import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
 import { usePreferences } from '@/context/preferences-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/reports/date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
   // Sort logs by date ascending to calculate consumption correctly
@@ -50,6 +53,10 @@ export default function LogsPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { consumptionUnit, getFormattedConsumption } = usePreferences();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -61,11 +68,21 @@ export default function LogsPage() {
 
   const { data: fuelLogs, isLoading } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
   
+  const filteredLogs = useMemo(() => {
+    if (!fuelLogs || !dateRange?.from || !dateRange?.to) return [];
+    const from = startOfDay(dateRange.from);
+    const to = endOfDay(dateRange.to);
+    return fuelLogs.filter(log => {
+      const logDate = new Date(log.date);
+      return logDate >= from && logDate <= to;
+    });
+  }, [fuelLogs, dateRange]);
+
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
 
-  const processedLogs = fuelLogs ? processFuelLogs(fuelLogs) : [];
+  const processedLogs = filteredLogs ? processFuelLogs(filteredLogs) : [];
   const lastLog = processedLogs?.[0]; // Already sorted desc
 
   return (
@@ -75,12 +92,15 @@ export default function LogsPage() {
               <h1 className="font-headline text-3xl">Registros de Combustible</h1>
               <p className="text-muted-foreground">Un historial completo de todas tus recargas.</p>
           </div>
-          <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle}>
-            <Button>
-              <Plus className="-ml-1 mr-2 h-4 w-4" />
-              Añadir Recarga
-            </Button>
-          </AddFuelLogDialog>
+           <div className="flex flex-col sm:flex-row gap-2">
+            <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
+            <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle}>
+                <Button>
+                <Plus className="-ml-1 mr-2 h-4 w-4" />
+                Añadir Recarga
+                </Button>
+            </AddFuelLogDialog>
+          </div>
         </div>
 
         {isLoading ? (
@@ -169,7 +189,7 @@ export default function LogsPage() {
              <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">
                 <Fuel className="h-12 w-12 text-muted-foreground" />
                 <p className="mt-4 font-semibold">No hay registros de combustible.</p>
-                <p className="text-sm text-muted-foreground">Añade tu primera recarga para empezar a rastrear.</p>
+                <p className="text-sm text-muted-foreground">Añade tu primera recarga o ajusta el filtro de fecha.</p>
             </div>
         )}
     </div>

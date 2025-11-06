@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { Trip, ProcessedFuelLog, Vehicle } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -10,11 +10,18 @@ import { Plus, Route, Loader2 } from 'lucide-react';
 import AddTripDialog from '@/components/dashboard/add-trip-dialog';
 import ActiveTrips from '@/components/trips/active-trips';
 import CompletedTrips from '@/components/trips/completed-trips';
+import { DateRangePicker } from '@/components/reports/date-range-picker';
+import type { DateRange } from 'react-day-picker';
+import { subDays, startOfDay, endOfDay } from 'date-fns';
 
 export default function TripsPage() {
   const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const tripsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -48,15 +55,26 @@ export default function TripsPage() {
   const { activeTrips, completedTrips } = useMemo(() => {
     const active: Trip[] = [];
     const completed: Trip[] = [];
-    (trips || []).forEach(trip => {
+
+    if (!trips) return { activeTrips: [], completedTrips: [] };
+
+    const from = dateRange?.from ? startOfDay(dateRange.from) : null;
+    const to = dateRange?.to ? endOfDay(dateRange.to) : null;
+
+    trips.forEach(trip => {
       if (trip.status === 'active') {
         active.push(trip);
       } else {
-        completed.push(trip);
+        if (trip.endDate) {
+           const tripEndDate = new Date(trip.endDate);
+           if ((!from || tripEndDate >= from) && (!to || tripEndDate <= to)) {
+              completed.push(trip);
+           }
+        }
       }
     });
     return { activeTrips: active, completedTrips: completed };
-  }, [trips]);
+  }, [trips, dateRange]);
 
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
@@ -72,12 +90,15 @@ export default function TripsPage() {
             <h1 className="font-headline text-3xl">Gestión de Viajes</h1>
             <p className="text-muted-foreground">Registra y analiza tus viajes de trabajo, vacaciones y más.</p>
         </div>
-        <AddTripDialog vehicleId={vehicle.id} lastOdometer={lastOdometer}>
-          <Button>
-            <Plus className="-ml-1 mr-2 h-4 w-4" />
-            Iniciar Viaje
-          </Button>
-        </AddTripDialog>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
+          <AddTripDialog vehicleId={vehicle.id} lastOdometer={lastOdometer}>
+            <Button>
+              <Plus className="-ml-1 mr-2 h-4 w-4" />
+              Iniciar Viaje
+            </Button>
+          </AddTripDialog>
+        </div>
       </div>
 
       {isLoading ? (
@@ -95,6 +116,13 @@ export default function TripsPage() {
                     <Route className="h-12 w-12 text-muted-foreground" />
                     <p className="mt-4 font-semibold">No hay viajes registrados.</p>
                     <p className="text-sm text-muted-foreground">Haz clic en "Iniciar Viaje" para registrar tu primero.</p>
+                </div>
+            )}
+             {trips && trips.length > 0 && completedTrips.length === 0 && activeTrips.length === 0 && (
+                <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">
+                    <Route className="h-12 w-12 text-muted-foreground" />
+                    <p className="mt-4 font-semibold">No hay viajes en este período.</p>
+                    <p className="text-sm text-muted-foreground">Ajusta el filtro de fecha para ver otros viajes.</p>
                 </div>
             )}
         </div>

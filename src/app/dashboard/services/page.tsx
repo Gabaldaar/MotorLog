@@ -1,6 +1,6 @@
-
 'use client';
 
+import { useMemo, useState } from 'react';
 import type { ServiceReminder, ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,19 @@ import { collection, query, orderBy, limit } from 'firebase/firestore';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
 import { cn } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
-import { differenceInDays } from 'date-fns';
+import { differenceInDays, startOfDay, endOfDay, subDays } from 'date-fns';
+import { DateRangePicker } from '@/components/reports/date-range-picker';
+import type { DateRange } from 'react-day-picker';
 
 export default function ServicesPage() {
   const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
-
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const remindersQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -43,6 +48,18 @@ export default function ServicesPage() {
   const { data: reminders, isLoading } = useCollection<ServiceReminder>(remindersQuery);
   const { data: lastFuelLog, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
 
+  const filteredReminders = useMemo(() => {
+    if (!reminders || !dateRange?.from || !dateRange?.to) return [];
+    const from = startOfDay(dateRange.from);
+    const to = endOfDay(dateRange.to);
+    return reminders.filter(r => {
+      const targetDate = r.isCompleted ? r.completedDate : r.dueDate;
+      if (!targetDate) return true; // Always show reminders without a date
+      const reminderDate = new Date(targetDate);
+      return reminderDate >= from && reminderDate <= to;
+    });
+  }, [reminders, dateRange]);
+
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
@@ -59,7 +76,7 @@ export default function ServicesPage() {
     return differenceInDays(new Date(dueDate), new Date());
   }
   
-  const sortedReminders = [...(reminders || [])].map(r => {
+  const sortedReminders = [...(filteredReminders || [])].map(r => {
     const kmsRemaining = getKmsRemaining(r.dueOdometer);
     const daysRemaining = getDaysRemaining(r.dueDate);
     
@@ -102,12 +119,15 @@ export default function ServicesPage() {
             <CardTitle className="font-headline">Servicios y Mantenimiento</CardTitle>
             <CardDescription>Gestiona los recordatorios de servicio para tu {vehicle.make} {vehicle.model}.</CardDescription>
         </div>
-        <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastOdometer}>
-            <Button>
-                <Plus className='-ml-1 mr-2 h-4 w-4' />
-                Añadir Recordatorio
-            </Button>
-        </AddServiceReminderDialog>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
+          <AddServiceReminderDialog vehicleId={vehicle.id} lastOdometer={lastOdometer}>
+              <Button>
+                  <Plus className='-ml-1 mr-2 h-4 w-4' />
+                  Añadir Recordatorio
+              </Button>
+          </AddServiceReminderDialog>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -248,7 +268,7 @@ export default function ServicesPage() {
             ) : (
               <div className="flex flex-col items-center justify-center h-48 rounded-lg border-2 border-dashed">
                 <Wrench className="h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-muted-foreground">No hay recordatorios de servicio.</p>
+                <p className="mt-4 text-muted-foreground">No hay recordatorios de servicio en este período.</p>
               </div>
             )}
         </div>

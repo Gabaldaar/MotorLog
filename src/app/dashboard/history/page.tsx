@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -35,13 +34,15 @@ import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
 import AddServiceReminderDialog from '@/components/dashboard/add-service-reminder-dialog';
 import DeleteServiceReminderDialog from '@/components/dashboard/delete-service-reminder-dialog';
 import { usePreferences } from '@/context/preferences-context';
-import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
+import { differenceInDays, differenceInHours, differenceInMinutes, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import type { EstimateFuelStopOutput } from '@/ai/flows/estimate-fuel-stop';
 import { ai } from '@/ai/client';
 import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 import AddTripDialog from '@/components/dashboard/add-trip-dialog';
 import DeleteTripDialog from '@/components/trips/delete-trip-dialog';
+import { DateRangePicker } from '@/components/reports/date-range-picker';
+import type { DateRange } from 'react-day-picker';
 
 type TimelineHistoryItem = {
     type: 'fuel' | 'service' | 'trip';
@@ -90,6 +91,10 @@ export default function HistoryPage() {
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
   const [estimate, setEstimate] = useState<EstimateFuelStopOutput | null>(null);
   const [isLoadingEstimate, setIsLoadingEstimate] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+  });
 
   const fuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
@@ -169,19 +174,28 @@ export default function HistoryPage() {
 
   const timelineItems = useMemo((): TimelineHistoryItem[] => {
     if (!fuelLogs && !serviceReminders && !trips) return [];
+    if (!dateRange?.from || !dateRange?.to) return [];
+    const from = startOfDay(dateRange.from);
+    const to = endOfDay(dateRange.to);
 
     const combined: TimelineHistoryItem[] = [];
 
     (fuelLogs || []).forEach(log => {
-      combined.push({
-        type: 'fuel',
-        sortKey: log.odometer,
-        date: log.date,
-        data: log
-      });
+      const logDate = new Date(log.date);
+      if (logDate >= from && logDate <= to) {
+        combined.push({ type: 'fuel', sortKey: log.odometer, date: log.date, data: log });
+      }
     });
 
     (serviceReminders || []).forEach(reminder => {
+      const targetDate = reminder.isCompleted ? reminder.completedDate : reminder.dueDate;
+      if (targetDate) {
+        const reminderDate = new Date(targetDate);
+        if (reminderDate < from || reminderDate > to) {
+          return; // Skip if out of range
+        }
+      }
+
       const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;
       const daysRemaining = reminder.dueDate ? differenceInDays(new Date(reminder.dueDate), new Date()) : null;
       
@@ -224,18 +238,16 @@ export default function HistoryPage() {
 
     (trips || []).forEach(trip => {
       if (trip.status === 'completed' && trip.endDate && trip.endOdometer) {
-        combined.push({
-          type: 'trip',
-          sortKey: trip.endOdometer,
-          date: trip.endDate,
-          data: trip,
-        });
+         const tripDate = new Date(trip.endDate);
+         if (tripDate >= from && tripDate <= to) {
+            combined.push({ type: 'trip', sortKey: trip.endOdometer, date: trip.endDate, data: trip });
+         }
       }
     });
 
     return combined.sort((a, b) => b.sortKey - a.sortKey);
 
-  }, [fuelLogs, serviceReminders, trips, lastOdometer, urgencyThresholdDays, urgencyThresholdKm]);
+  }, [fuelLogs, serviceReminders, trips, lastOdometer, urgencyThresholdDays, urgencyThresholdKm, dateRange]);
   
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
@@ -247,8 +259,13 @@ export default function HistoryPage() {
   return (
      <Card>
       <CardHeader>
-        <CardTitle className="font-headline flex items-center gap-2"><History /> Historial del Vehículo</CardTitle>
-        <CardDescription>Una línea de tiempo unificada de todas las recargas y servicios para tu {vehicle.make} {vehicle.model}.</CardDescription>
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start">
+            <div>
+                <CardTitle className="font-headline flex items-center gap-2"><History /> Historial del Vehículo</CardTitle>
+                <CardDescription>Una línea de tiempo unificada de todas las recargas y servicios para tu {vehicle.make} {vehicle.model}.</CardDescription>
+            </div>
+            <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
+        </div>
       </CardHeader>
       <CardContent>
          {isLoading ? (
@@ -273,7 +290,7 @@ export default function HistoryPage() {
                   <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">
                       <History className="h-12 w-12 text-muted-foreground" />
                       <p className="mt-4 font-semibold">No hay historial.</p>
-                      <p className="text-sm text-muted-foreground">Añade recargas o servicios para empezar a construir la línea de tiempo.</p>
+                      <p className="text-sm text-muted-foreground">Añade recargas o servicios, o ajusta el filtro de fecha.</p>
                   </div>
               )}
             </div>
