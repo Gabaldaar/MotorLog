@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Car, Fuel, Menu, LogOut, Settings, Wrench, History, Route } from 'lucide-react';
+import { Car, Fuel, Menu, LogOut, Settings, Wrench, History, Route, Leaf } from 'lucide-react';
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
