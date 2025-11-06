@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Plus, Loader2, Car } from 'lucide-react';
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { Button } from '@/components/ui/button';
 import {
@@ -28,10 +29,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import type { Vehicle, ConfigItem } from '@/lib/types';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useStorage } from '@/firebase';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
 const formSchema = z.object({
   make: z.string().min(1, 'La marca es obligatoria.'),
@@ -40,7 +44,9 @@ const formSchema = z.object({
   plate: z.string().min(1, 'La patente es obligatoria.'),
   fuelCapacityLiters: z.coerce.number().min(1, 'La capacidad del tanque es obligatoria.'),
   averageConsumptionKmPerLiter: z.coerce.number().min(1, 'El consumo es obligatorio.'),
-  imageUrl: z.string().url('URL de imagen inválida.').optional().or(z.literal('')),
+  imageFile: z.any()
+    .refine((file) => !file || file.size <= MAX_FILE_SIZE, `El tamaño máximo es 5MB.`)
+    .refine((file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type), "Solo se aceptan formatos .jpg, .jpeg, .png y .webp."),
   defaultFuelType: z.string({
     required_error: 'El tipo de combustible es obligatorio.',
   }),
@@ -59,6 +65,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
+  const storage = useStorage();
   const isEditing = !!vehicle;
 
   const fuelTypesQuery = useMemoFirebase(() => {
@@ -77,7 +84,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
       plate: vehicle?.plate || '',
       fuelCapacityLiters: vehicle?.fuelCapacityLiters,
       averageConsumptionKmPerLiter: vehicle?.averageConsumptionKmPerLiter,
-      imageUrl: vehicle?.imageUrl || '',
+      imageFile: undefined,
       defaultFuelType: vehicle?.defaultFuelType,
     },
   });
@@ -94,16 +101,37 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     setIsSubmitting(true);
     
     const vehicleId = isEditing ? vehicle.id : doc(collection(firestore, '_')).id;
-    // Save to the top-level 'vehicles' collection
+    let imageUrl = vehicle?.imageUrl || '';
+
+    // Handle file upload
+    if (values.imageFile) {
+        try {
+            const file = values.imageFile as File;
+            const imageStorageRef = storageRef(storage, `vehicle-images/${user.uid}/${vehicleId}/${file.name}`);
+            const snapshot = await uploadBytes(imageStorageRef, file);
+            imageUrl = await getDownloadURL(snapshot.ref);
+        } catch (error) {
+            console.error("Error uploading image: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al subir la imagen",
+                description: "No se pudo subir la imagen del vehículo. Inténtalo de nuevo.",
+            });
+            setIsSubmitting(false);
+            return;
+        }
+    }
+
+
     const vehicleRef = doc(firestore, 'vehicles', vehicleId);
     
     const vehicleData = {
         ...values,
         id: vehicleId,
-        // No longer storing userId, as it's a shared resource
-        imageUrl: values.imageUrl || `https://picsum.photos/seed/${vehicleId}/600/400`,
+        imageUrl: imageUrl,
         imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
     };
+    delete (vehicleData as any).imageFile; // Don't save the file object to Firestore
 
     setDocumentNonBlocking(vehicleRef, vehicleData, { merge: true });
     
@@ -122,7 +150,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           plate: '',
           fuelCapacityLiters: undefined,
           averageConsumptionKmPerLiter: undefined,
-          imageUrl: '',
+          imageFile: undefined,
           defaultFuelType: undefined,
         });
     }
@@ -231,15 +259,15 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
             />
             <FormField
               control={form.control}
-              name="imageUrl"
+              name="imageFile"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL de la Imagen (Opcional)</FormLabel>
+                  <FormLabel>Imagen del Vehículo</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="https://example.com/image.png"
-                      {...field}
-                      value={field.value ?? ''}
+                    <Input 
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => field.onChange(e.target.files ? e.target.files[0] : null)}
                     />
                   </FormControl>
                   <FormMessage />
