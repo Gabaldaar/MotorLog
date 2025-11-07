@@ -52,12 +52,12 @@ const getNearbyGasStationsTool = ai.defineTool(
 
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        const errorBody = await response.json();
-        console.error('Google Places API Error:', errorBody);
-        throw new Error(`Failed to fetch gas stations. Status: ${response.status}`);
-      }
       const data = await response.json();
+
+      if (!response.ok) {
+        console.error('Google Places API Error (Not OK):', data);
+        throw new Error(`Failed to fetch gas stations. Status: ${response.status}. Message: ${data.error_message || 'No message'}`);
+      }
 
       if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
         console.error('Google Places API Status Error:', data.error_message || data.status);
@@ -89,6 +89,10 @@ const getNearbyGasStationsTool = ai.defineTool(
 
     } catch (error) {
       console.error('Error fetching from Google Places API:', error);
+      // Re-throw the original error if it's more specific, otherwise throw a generic one.
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Could not retrieve gas stations from Google Places API.');
     }
   }
