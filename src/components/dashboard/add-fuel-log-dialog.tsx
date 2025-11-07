@@ -367,18 +367,20 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                   <FormItem>
                     <FormLabel>Gasolinera</FormLabel>
                     <div className="flex gap-2">
-                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value ?? ''}>
-                          <FormControl>
-                          <SelectTrigger disabled={isLoadingGasStations}>
-                              <SelectValue placeholder={isLoadingGasStations ? "Cargando..." : "Selecciona una"} />
-                          </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
+                        <FormControl>
+                            <Input 
+                                placeholder={isLoadingGasStations ? "Cargando..." : "Escribe o busca"}
+                                {...field}
+                                value={field.value ?? ''}
+                                list="gas-stations-list"
+                                disabled={isLoadingGasStations}
+                            />
+                        </FormControl>
+                         <datalist id="gas-stations-list">
                             {gasStations?.map(station => (
-                              <SelectItem key={station.id} value={station.name}>{station.name}</SelectItem>
+                              <option key={station.id} value={station.name} />
                             ))}
-                          </SelectContent>
-                      </Select>
+                        </datalist>
                       <FindGasStationsDialog onStationSelect={handleGasStationSelect} />
                     </div>
                     <FormMessage />
