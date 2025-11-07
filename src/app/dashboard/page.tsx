@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { useMemo } from 'react';
 import type { ProcessedFuelLog, ServiceReminder, ProcessedServiceReminder } from '@/lib/types';
 import WelcomeBanner from '@/components/dashboard/welcome-banner';
 import StatCard from '@/components/dashboard/stat-card';
@@ -16,38 +16,33 @@ import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
 import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
 
-function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
-  const sortedLogs = logs
-    .filter(log => log && typeof log.date === 'string')
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
+  // Sort logs by odometer ascending to calculate consumption correctly
+  const sortedLogsAsc = logs.sort((a, b) => a.odometer - b.odometer);
 
-  const processed = sortedLogs.map((log, index) => {
-    if (index === 0) {
-      return { ...log };
-    }
-    const prevLog = sortedLogs[index - 1];
-    if (!prevLog) return {...log};
+  const calculatedLogs = sortedLogsAsc.map((log, index) => {
+    if (index === 0) return { ...log };
+    
+    const prevLog = sortedLogsAsc[index - 1];
     
     const distanceTraveled = log.odometer - prevLog.odometer;
-    // Calculate consumption only if the previous log was a fill-up
-    // and the current log is NOT marked as having a missed previous fill-up.
-    const consumption = prevLog.isFillUp && !log.missedPreviousFillUp && distanceTraveled > 0 && log.liters > 0 
-      ? distanceTraveled / log.liters 
-      : 0;
     
-    return {
-      ...log,
-      distanceTraveled,
-      consumption: parseFloat(consumption.toFixed(2)),
-    };
-  }).reverse(); // Reverse to show latest first
+    // Only calculate consumption if the previous log was a fill-up
+    // and the current log is NOT marked as having a missed previous fill-up.
+    if (prevLog && prevLog.isFillUp && !log.missedPreviousFillUp) {
+      const consumption = distanceTraveled > 0 && log.liters > 0 ? distanceTraveled / log.liters : 0;
+      return {
+        ...log,
+        distanceTraveled,
+        consumption: parseFloat(consumption.toFixed(2)),
+      };
+    }
+    
+    return { ...log, distanceTraveled };
+  });
 
-  const consumptionLogs = processed.filter(log => log.consumption && log.consumption > 0);
-  const avgConsumption = consumptionLogs.length > 0 
-    ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
-    : vehicle.averageConsumptionKmPerLiter || 0;
-
-  return { processedLogs: processed, avgConsumption };
+  // Return logs sorted descending by date for display
+  return calculatedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export default function DashboardPage() {
@@ -71,26 +66,17 @@ export default function DashboardPage() {
       orderBy('dueDate', 'asc')
     );
   }, [firestore, user, vehicle]);
-
-  const lastFuelLogQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(
-      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
-      orderBy('odometer', 'desc'),
-      limit(1)
-    );
-  }, [firestore, user, vehicle]);
-
-
-  const { data: fuelLogs, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
+  
+  const { data: fuelLogsData, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
-  const { data: lastFuelLog, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
+  
+  const lastOdometer = fuelLogsData?.[0]?.odometer || 0;
 
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
-  if (isLoadingLogs || isLoadingReminders || isLoadingLastLog) {
+  if (isLoadingLogs || isLoadingReminders) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -98,14 +84,20 @@ export default function DashboardPage() {
     );
   }
 
-  const { processedLogs: vehicleFuelLogs, avgConsumption } = processFuelLogs(fuelLogs || [], vehicle);
+  const vehicleFuelLogs = processFuelLogs(fuelLogsData || []);
+  
+  const avgConsumption = useMemo(() => {
+    const consumptionLogs = vehicleFuelLogs.filter(log => log.consumption && log.consumption > 0);
+    return consumptionLogs.length > 0 
+      ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
+      : vehicle.averageConsumptionKmPerLiter || 0;
+  }, [vehicleFuelLogs, vehicle.averageConsumptionKmPerLiter]);
+
   const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
   
   const totalSpent = vehicleFuelLogs.reduce((acc, log) => acc + log.totalCost, 0);
   const totalLiters = vehicleFuelLogs.reduce((acc, log) => acc + log.liters, 0);
 
-  const lastOdometer = lastFuelLog?.[0]?.odometer || 0;
-  
   const pendingReminders: ProcessedServiceReminder[] = (serviceReminders || [])
     .filter(r => !r.isCompleted)
     .map(r => {
@@ -145,9 +137,8 @@ export default function DashboardPage() {
     let description = nextService.serviceType;
 
     if (nextService.dueOdometer && nextService.dueDate) {
-        // If both exist, prioritize whichever is closer.
         const kmRatio = nextService.kmsRemaining !== null ? nextService.kmsRemaining / (nextService.recurrenceIntervalKm || 5000) : 1;
-        const dayRatio = nextService.daysRemaining !== null ? nextService.daysRemaining / 30 : 1; // Assuming ~30 days for a time-based service
+        const dayRatio = nextService.daysRemaining !== null ? nextService.daysRemaining / 30 : 1;
         if (kmRatio <= dayRatio) {
             mainValue = `${nextService.dueOdometer.toLocaleString()} km`;
         } else {

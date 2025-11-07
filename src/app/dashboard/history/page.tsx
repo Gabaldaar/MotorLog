@@ -56,7 +56,8 @@ export default function HistoryPage() {
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const fuelLogsQuery = useMemoFirebase(() => {
+  // This query fetches ALL fuel logs for calculations (like average consumption and estimation)
+  const allFuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
       collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
@@ -79,21 +80,11 @@ export default function HistoryPage() {
     );
   }, [firestore, user, vehicle]);
   
-  const lastFuelLogQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(
-      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
-      orderBy('odometer', 'desc'),
-      limit(1)
-    );
-  }, [firestore, user, vehicle]);
-
-  const { data: fuelLogs, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
+  const { data: allFuelLogs, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(allFuelLogsQuery);
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
   const { data: trips, isLoading: isLoadingTrips } = useCollection<Trip>(tripsQuery);
-  const { data: lastFuelLogResult, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
-
-  const lastOdometer = lastFuelLogResult?.[0]?.odometer || 0;
+  
+  const lastOdometer = allFuelLogs?.[0]?.odometer || 0;
   
   const timelineItems = useMemo((): TimelineHistoryItem[] => {
     const combined: TimelineHistoryItem[] = [];
@@ -101,12 +92,10 @@ export default function HistoryPage() {
     const from = dateRange?.from ? startOfDay(dateRange.from) : null;
     const to = dateRange?.to ? endOfDay(dateRange.to) : null;
 
-    (fuelLogs || []).forEach(log => {
+    (allFuelLogs || []).forEach(log => {
       if (!from || !to || (new Date(log.date) >= from && new Date(log.date) <= to)) {
         combined.push({ type: 'fuel', sortKey: log.odometer, date: log.date, data: log });
         if (log.missedPreviousFillUp) {
-            // The missing log is chronologically *before* this one, which means it should appear *after* it in a descending list.
-            // We subtract 1 from the odometer to ensure it's sorted just after the current log.
             combined.push({ type: 'missed-log', sortKey: log.odometer - 1, date: log.date, data: {} });
         }
       }
@@ -117,7 +106,7 @@ export default function HistoryPage() {
       if (from && to && targetDate) {
         const reminderDate = new Date(targetDate);
         if (reminderDate < from || reminderDate > to) {
-          return; // Skip if out of range
+          return;
         }
       }
 
@@ -142,15 +131,11 @@ export default function HistoryPage() {
         sortKey = reminder.dueOdometer;
         timelineDate = reminder.dueDate; 
       } else if (reminder.dueDate) {
-        // For date-only reminders, we need a numeric sort key. Using timestamp.
-        // To avoid conflicts with large odometer numbers, we can invert it or use a different scale,
-        // but for now, timestamp should be fine if odometers are not excessively large.
         sortKey = new Date(reminder.dueDate).getTime();
         timelineDate = reminder.dueDate;
       }
 
       if (sortKey === null && !timelineDate) {
-          // Fallback for reminders without any date or odo, shouldn't happen with validation
           sortKey = new Date().getTime();
           timelineDate = new Date().toISOString();
       }
@@ -175,21 +160,22 @@ export default function HistoryPage() {
 
     return combined.sort((a, b) => b.sortKey - a.sortKey);
 
-  }, [fuelLogs, serviceReminders, trips, lastOdometer, urgencyThresholdDays, urgencyThresholdKm, dateRange]);
+  }, [allFuelLogs, serviceReminders, trips, lastOdometer, urgencyThresholdDays, urgencyThresholdKm, dateRange]);
   
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
-  const isLoading = isLoadingLogs || isLoadingReminders || isLoadingLastLog || isLoadingTrips;
-  const lastLogForNewEntry = fuelLogs?.[0];
+  const isLoading = isLoadingLogs || isLoadingReminders || isLoadingTrips;
+  const lastLogForNewEntry = allFuelLogs?.[0];
 
   const avgConsumption = useMemo(() => {
-    const consumptionLogs = (fuelLogs || []).filter(log => 'consumption' in log && log.consumption && log.consumption > 0);
+    if (!allFuelLogs) return vehicle.averageConsumptionKmPerLiter || 0;
+    const consumptionLogs = allFuelLogs.filter(log => 'consumption' in log && log.consumption && log.consumption > 0);
     return consumptionLogs.length > 0
       ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
       : vehicle.averageConsumptionKmPerLiter || 0;
-  }, [fuelLogs, vehicle.averageConsumptionKmPerLiter]);
+  }, [allFuelLogs, vehicle.averageConsumptionKmPerLiter]);
 
   const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
 
@@ -205,7 +191,7 @@ export default function HistoryPage() {
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={fuelLogs || []} />
+        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogs || []} />
          {isLoading ? (
              <div className="h-64 text-center flex flex-col items-center justify-center">
                 <History className="h-12 w-12 animate-pulse text-muted-foreground" />
@@ -220,7 +206,7 @@ export default function HistoryPage() {
                         {item.type === 'fuel' && 'id' in item.data && <AccordionItem value={`fuel-${item.data.id}`}><FuelLogItemContent log={item.data as ProcessedFuelLog} vehicle={vehicle as Vehicle} lastLog={lastLogForNewEntry} /></AccordionItem>}
                         {item.type === 'missed-log' && <MissedLogPlaceholder />}
                         {item.type === 'service' && 'id' in item.data && <AccordionItem value={`service-${item.data.id}`}><ServiceItemContent reminder={item.data as ProcessedServiceReminder} vehicleId={vehicle.id} lastOdometer={lastOdometer} /></AccordionItem>}
-                        {item.type === 'trip' && 'id' in item.data && <AccordionItem value={`trip-${item.data.id}`}><TripItemContent trip={item.data as Trip} vehicle={vehicle as Vehicle} allFuelLogs={fuelLogs || []} /></AccordionItem>}
+                        {item.type === 'trip' && 'id' in item.data && <AccordionItem value={`trip-${item.data.id}`}><TripItemContent trip={item.data as Trip} vehicle={vehicle as Vehicle} allFuelLogs={allFuelLogs || []} /></AccordionItem>}
                       </Fragment>
                     ))}
                   </Accordion>

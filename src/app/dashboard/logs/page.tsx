@@ -20,8 +20,8 @@ import { subDays, startOfDay, endOfDay } from 'date-fns';
 import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
-  // Sort logs by date ascending to calculate consumption correctly
-  const sortedLogsAsc = logs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Sort logs by odometer ascending to calculate consumption correctly
+  const sortedLogsAsc = logs.sort((a, b) => a.odometer - b.odometer);
 
   const calculatedLogs = sortedLogsAsc.map((log, index) => {
     if (index === 0) return { ...log };
@@ -44,8 +44,8 @@ function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
     return { ...log, distanceTraveled };
   });
 
-  // Return logs sorted descending for display
-  return calculatedLogs.reverse();
+  // Return logs sorted descending for display (by date, which is the original query order)
+  return calculatedLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 function MissedLogPlaceholder() {
@@ -72,7 +72,8 @@ export default function LogsPage() {
   const { consumptionUnit, getFormattedConsumption } = usePreferences();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  const fuelLogsQuery = useMemoFirebase(() => {
+  // This query fetches ALL fuel logs for calculations (like average consumption and estimation)
+  const allFuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
       collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
@@ -80,25 +81,29 @@ export default function LogsPage() {
     );
   }, [firestore, user, vehicle]);
 
-  const { data: fuelLogs, isLoading } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
+  const { data: allFuelLogs, isLoading } = useCollection<ProcessedFuelLog>(allFuelLogsQuery);
+  
+  const processedLogs = useMemo(() => {
+    if (!allFuelLogs) return [];
+    return processFuelLogs([...allFuelLogs]);
+  }, [allFuelLogs]);
   
   const filteredLogs = useMemo(() => {
-    if (!fuelLogs) return [];
-    if (!dateRange?.from || !dateRange?.to) return fuelLogs;
+    if (!processedLogs) return [];
+    if (!dateRange?.from || !dateRange?.to) return processedLogs;
 
     const from = startOfDay(dateRange.from);
     const to = endOfDay(dateRange.to);
-    return fuelLogs.filter(log => {
+    return processedLogs.filter(log => {
       const logDate = new Date(log.date);
       return logDate >= from && logDate <= to;
     });
-  }, [fuelLogs, dateRange]);
+  }, [processedLogs, dateRange]);
 
   if (!vehicle) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
-
-  const processedLogs = filteredLogs ? processFuelLogs(filteredLogs) : [];
+  
   const lastLog = processedLogs?.[0]; // Already sorted desc
   
   const avgConsumption = useMemo(() => {
@@ -128,17 +133,17 @@ export default function LogsPage() {
           </div>
         </div>
         
-        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={fuelLogs || []} />
+        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogs || []} />
 
         {isLoading ? (
              <div className="h-64 text-center flex flex-col items-center justify-center">
                 <Fuel className="h-12 w-12 animate-pulse text-muted-foreground" />
                 <p className="mt-4 text-muted-foreground">Cargando registros...</p>
             </div>
-        ) : processedLogs.length > 0 ? (
+        ) : filteredLogs.length > 0 ? (
             <Card>
               <Accordion type="single" collapsible className="w-full">
-                  {processedLogs.map(log => (
+                  {filteredLogs.map(log => (
                       <Fragment key={log.id}>
                         <AccordionItem value={log.id}>
                             <AccordionTrigger className="px-6 py-4 text-left hover:no-underline">
@@ -227,7 +232,7 @@ export default function LogsPage() {
              <div className="h-64 text-center flex flex-col items-center justify-center rounded-lg border-2 border-dashed">
                 <Fuel className="h-12 w-12 text-muted-foreground" />
                 <p className="mt-4 font-semibold">No hay registros de combustible.</p>
-                <p className="text-sm text-muted-foreground">Añade tu primera recarga para empezar.</p>
+                <p className="text-sm text-muted-foreground">Añade tu primera recarga para empezar o ajusta el filtro de fecha.</p>
             </div>
         )}
     </div>
