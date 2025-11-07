@@ -4,10 +4,10 @@ import Image from 'next/image';
 import type { Vehicle, ProcessedFuelLog } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import AddFuelLogDialog from './add-fuel-log-dialog';
-import { Wrench, Plus, MapPin } from 'lucide-react';
+import { Wrench, Plus, Search } from 'lucide-react';
 import AddServiceReminderDialog from './add-service-reminder-dialog';
 import { Button } from '../ui/button';
-import EstimatedRefuelCard from '../ai/estimated-refuel-card';
+import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 
 
 interface WelcomeBannerProps {
@@ -16,6 +16,13 @@ interface WelcomeBannerProps {
 }
 
 export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) {
+
+  // This function is a placeholder for handling the selected station.
+  // In a real scenario, you might want to pre-fill the gas station field in another form.
+  const handleStationSelect = (stationName: string) => {
+    console.log("Selected gas station:", stationName);
+    // Example: You could open the "Add Fuel Log" dialog with the station pre-filled.
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -36,7 +43,7 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                 </div>
             </div>
             )}
-             <CardContent className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+             <CardContent className="p-6">
                 <div className="flex items-center flex-wrap gap-2">
                     {vehicle && (
                       <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle}>
@@ -54,8 +61,13 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                         </Button>
                     </AddServiceReminderDialog>
                     )}
+                    <FindNearbyGasStationsDialog onStationSelect={handleStationSelect}>
+                       <Button variant="secondary" size="sm" className="w-auto">
+                          <Search className="mr-2 h-4 w-4" />
+                          Buscar Gasolineras
+                        </Button>
+                    </FindNearbyGasStationsDialog>
                 </div>
-                <EstimatedRefuelCard vehicle={vehicle} lastLog={lastLog} />
             </CardContent>
         </div>
     </Card>

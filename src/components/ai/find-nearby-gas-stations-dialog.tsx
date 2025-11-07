@@ -15,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui
 import { useToast } from '@/hooks/use-toast';
 import { findNearbyGasStations, type GasStationOutput } from '@/ai/flows/find-nearby-gas-stations';
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface FindNearbyGasStationsDialogProps {
   children: React.ReactNode;
@@ -27,12 +29,20 @@ export default function FindNearbyGasStationsDialog({ children, onStationSelect 
   const [error, setError] = useState<string | null>(null);
   const [stations, setStations] = useState<GasStationOutput[]>([]);
   const { toast } = useToast();
-  const [radius, setRadius] = useState('5000'); // Default radius is 5km
+  const [radiusKm, setRadiusKm] = useState('5'); // Default radius is 5km
 
   const handleSearch = () => {
     setIsLoading(true);
     setError(null);
     setStations([]);
+    
+    const radiusMeters = parseInt(radiusKm, 10) * 1000;
+
+    if (isNaN(radiusMeters) || radiusMeters <= 0 || radiusMeters > 50000) {
+      setError("Por favor, ingresa un radio válido entre 0 y 50 km.");
+      setIsLoading(false);
+      return;
+    }
     
     if (!navigator.geolocation) {
       setError("La geolocalización no es soportada por este navegador.");
@@ -46,7 +56,7 @@ export default function FindNearbyGasStationsDialog({ children, onStationSelect 
           const results = await findNearbyGasStations({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-            radius: parseInt(radius, 10),
+            radius: radiusMeters,
           });
 
           if (results.length === 0) {
@@ -106,21 +116,37 @@ export default function FindNearbyGasStationsDialog({ children, onStationSelect 
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
-                <ToggleGroup type="single" value={radius} onValueChange={(value) => value && setRadius(value)} className="w-full sm:w-auto">
-                    <ToggleGroupItem value="5000">5 km</ToggleGroupItem>
-                    <ToggleGroupItem value="10000">10 km</ToggleGroupItem>
-                    <ToggleGroupItem value="25000">25 km</ToggleGroupItem>
-                </ToggleGroup>
-                <Button onClick={handleSearch} disabled={isLoading} className="w-full sm:w-auto flex-1">
-                    {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                    <Search className="mr-2 h-4 w-4" />
-                    )}
-                    Buscar
-                </Button>
+             <div className="space-y-2">
+                <Label>Radio de búsqueda</Label>
+                <div className="flex items-center gap-2">
+                    <ToggleGroup 
+                        type="single" 
+                        value={radiusKm} 
+                        onValueChange={(value) => { if(value) setRadiusKm(value) }}
+                        className="w-auto"
+                    >
+                        <ToggleGroupItem value="5">5 km</ToggleGroupItem>
+                        <ToggleGroupItem value="10">10 km</ToggleGroupItem>
+                        <ToggleGroupItem value="25">25 km</ToggleGroupItem>
+                    </ToggleGroup>
+                    <Input 
+                        type="number" 
+                        value={radiusKm}
+                        onChange={(e) => setRadiusKm(e.target.value)}
+                        className="w-20"
+                        placeholder="km"
+                    />
+                </div>
             </div>
+            
+            <Button onClick={handleSearch} disabled={isLoading} className="w-full">
+                {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                <Search className="mr-2 h-4 w-4" />
+                )}
+                Buscar
+            </Button>
 
 
           {error && (
