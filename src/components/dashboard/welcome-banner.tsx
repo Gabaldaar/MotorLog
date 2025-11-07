@@ -7,6 +7,7 @@ import AddFuelLogDialog from './add-fuel-log-dialog';
 import { Wrench, Plus, MapPin } from 'lucide-react';
 import AddServiceReminderDialog from './add-service-reminder-dialog';
 import { Button } from '../ui/button';
+import EstimatedRefuelCard from '../ai/estimated-refuel-card';
 
 
 interface WelcomeBannerProps {
@@ -35,7 +36,7 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                 </div>
             </div>
             )}
-             <CardContent className="p-6 space-y-4">
+             <CardContent className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                 <div className="flex items-center flex-wrap gap-2">
                     {vehicle && (
                       <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle}>
@@ -54,6 +55,7 @@ export default function WelcomeBanner({ vehicle, lastLog }: WelcomeBannerProps) 
                     </AddServiceReminderDialog>
                     )}
                 </div>
+                <EstimatedRefuelCard vehicle={vehicle} lastLog={lastLog} />
             </CardContent>
         </div>
     </Card>

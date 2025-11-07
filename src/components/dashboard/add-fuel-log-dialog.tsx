@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { CalendarIcon, Plus, Loader2 } from 'lucide-react';
+import { CalendarIcon, Plus, Loader2, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -44,6 +44,7 @@ import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { FuelLog, User, Vehicle, ConfigItem } from '@/lib/types';
+import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 
 const formSchema = z.object({
   date: z.date({
@@ -383,6 +384,12 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                                 className="flex-1"
                             />
                         </FormControl>
+                        <FindNearbyGasStationsDialog onStationSelect={handleGasStationSelect}>
+                            <Button type="button" variant="outline" size="icon" className="shrink-0">
+                                <Search className="h-4 w-4" />
+                                <span className="sr-only">Buscar gasolineras cercanas</span>
+                            </Button>
+                        </FindNearbyGasStationsDialog>
                     </div>
                      <datalist id="gas-stations-list">
                         {gasStations?.map(station => (
