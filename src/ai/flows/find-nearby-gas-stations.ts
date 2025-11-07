@@ -81,9 +81,8 @@ const findNearbyGasStationsFlow = ai.defineFlow(
 
     const toolResponse = await toolRequest.run();
 
-    const finalResult = toolResponse.output as GasStationResult;
-    if (finalResult) {
-      return finalResult;
+    if (toolResponse?.output) {
+        return toolResponse.output as GasStationResult;
     }
     
     // Fallback in case the tool doesn't work as expected
