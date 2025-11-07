@@ -62,7 +62,7 @@ export default function HistoryPage() {
     if (!user || !vehicle) return null;
     return query(
       collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
-      orderBy('odometer', 'desc')
+      orderBy('date', 'desc')
     );
   }, [firestore, user, vehicle]);
 
@@ -85,7 +85,12 @@ export default function HistoryPage() {
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
   const { data: trips, isLoading: isLoadingTrips } = useCollection<Trip>(tripsQuery);
   
-  const lastOdometer = allFuelLogs?.[0]?.odometer || 0;
+  const lastOdometer = useMemo(() => {
+    if (!allFuelLogs || allFuelLogs.length === 0) return 0;
+    // Find the log with the highest odometer reading
+    return Math.max(...allFuelLogs.map(log => log.odometer));
+  }, [allFuelLogs]);
+
 
   const avgConsumption = useMemo(() => {
     if (!allFuelLogs) return vehicle?.averageConsumptionKmPerLiter || 0;
@@ -552,5 +557,7 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
     </>
   )
 }
+
+    
 
     
