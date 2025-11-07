@@ -15,6 +15,7 @@ import { ai } from '@/ai/client';
 import type { GasStationResult } from '@/ai/flows/find-nearby-gas-stations';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { cn } from '@/lib/utils';
 
 interface FindGasStationsDialogProps {
   onStationSelect?: (name: string) => void;
