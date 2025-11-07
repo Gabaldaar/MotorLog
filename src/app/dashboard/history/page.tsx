@@ -40,6 +40,7 @@ import AddTripDialog from '@/components/dashboard/add-trip-dialog';
 import DeleteTripDialog from '@/components/trips/delete-trip-dialog';
 import { DateRangePicker } from '@/components/reports/date-range-picker';
 import type { DateRange } from 'react-day-picker';
+import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 
 type TimelineHistoryItem = {
     type: 'fuel' | 'service' | 'trip' | 'missed-log';
@@ -183,6 +184,15 @@ export default function HistoryPage() {
   const isLoading = isLoadingLogs || isLoadingReminders || isLoadingLastLog || isLoadingTrips;
   const lastLogForNewEntry = fuelLogs?.[0];
 
+  const avgConsumption = useMemo(() => {
+    const consumptionLogs = (fuelLogs || []).filter(log => 'consumption' in log && log.consumption && log.consumption > 0);
+    return consumptionLogs.length > 0
+      ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
+      : vehicle.averageConsumptionKmPerLiter || 0;
+  }, [fuelLogs, vehicle.averageConsumptionKmPerLiter]);
+
+  const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
+
   return (
      <Card>
       <CardHeader>
@@ -194,7 +204,8 @@ export default function HistoryPage() {
             <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={fuelLogs || []} />
          {isLoading ? (
              <div className="h-64 text-center flex flex-col items-center justify-center">
                 <History className="h-12 w-12 animate-pulse text-muted-foreground" />

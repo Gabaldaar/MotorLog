@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, Fragment } from 'react';
-import type { ProcessedFuelLog } from '@/lib/types';
+import type { ProcessedFuelLog, Vehicle } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
 import { formatDate, formatCurrency } from '@/lib/utils';
 import AddFuelLogDialog from '@/components/dashboard/add-fuel-log-dialog';
@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DateRangePicker } from '@/components/reports/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { subDays, startOfDay, endOfDay } from 'date-fns';
+import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
   // Sort logs by date ascending to calculate consumption correctly
@@ -99,6 +100,15 @@ export default function LogsPage() {
 
   const processedLogs = filteredLogs ? processFuelLogs(filteredLogs) : [];
   const lastLog = processedLogs?.[0]; // Already sorted desc
+  
+  const avgConsumption = useMemo(() => {
+    const consumptionLogs = processedLogs.filter(log => log.consumption && log.consumption > 0);
+    return consumptionLogs.length > 0
+      ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
+      : vehicle.averageConsumptionKmPerLiter || 0;
+  }, [processedLogs, vehicle.averageConsumptionKmPerLiter]);
+
+  const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,7 +119,7 @@ export default function LogsPage() {
           </div>
            <div className="flex flex-col sm:flex-row gap-2">
             <DateRangePicker dateRange={dateRange} setDateRange={setDateRange} />
-            <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle}>
+            <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} vehicle={vehicle as Vehicle}>
                 <Button>
                 <Plus className="-ml-1 mr-2 h-4 w-4" />
                 Añadir Recarga
@@ -117,6 +127,8 @@ export default function LogsPage() {
             </AddFuelLogDialog>
           </div>
         </div>
+        
+        <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={fuelLogs || []} />
 
         {isLoading ? (
              <div className="h-64 text-center flex flex-col items-center justify-center">
@@ -192,7 +204,7 @@ export default function LogsPage() {
                                         </div>
                                     )}
                                     <div className="flex gap-2 pt-4">
-                                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log} vehicle={vehicle}>
+                                        <AddFuelLogDialog vehicleId={vehicle.id} lastLog={lastLog} fuelLog={log} vehicle={vehicle as Vehicle}>
                                             <Button variant="outline" size="sm" className="w-full">
                                                 <Edit className="h-4 w-4 mr-1" /> Editar
                                             </Button>
