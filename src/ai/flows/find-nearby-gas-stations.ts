@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import { generate } from 'genkit';
 
 const FindNearbyGasStationsInputSchema = z.object({
@@ -67,7 +67,7 @@ const findNearbyGasStationsFlow = ai.defineFlow(
     outputSchema: GasStationResultSchema,
   },
   async (input) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       prompt: `Find nearby gas stations for latitude ${input.latitude} and longitude ${input.longitude}.`,
       tools: [getNearbyGasStationsTool],
       model: 'googleai/gemini-2.5-flash',
