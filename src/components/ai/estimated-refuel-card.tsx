@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Fuel, Gauge, Loader2, Sparkles, Wand } from 'lucide-react';
-import { useFlow } from '@genkit-ai/next/client';
 import { estimateFuelStop } from '@/ai/flows/estimate-fuel-stop';
 import { Skeleton } from '../ui/skeleton';
 
@@ -19,7 +18,6 @@ export default function EstimatedRefuelCard({ vehicle, lastLog }: EstimatedRefue
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<Awaited<ReturnType<typeof estimateFuelStop>> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const estimateFuelStopFlow = useFlow(estimateFuelStop);
   
   const canCalculate = useMemo(() => {
     return vehicle && lastLog && vehicle.averageConsumptionKmPerLiter && vehicle.averageConsumptionKmPerLiter > 0;
@@ -36,7 +34,7 @@ export default function EstimatedRefuelCard({ vehicle, lastLog }: EstimatedRefue
     setResult(null);
 
     try {
-      const estimation = await estimateFuelStopFlow({
+      const estimation = await estimateFuelStop({
         vehicleMake: vehicle.make,
         vehicleModel: vehicle.model,
         vehicleYear: vehicle.year,
