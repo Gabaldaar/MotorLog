@@ -36,16 +36,16 @@ export async function findNearbyGasStations(input: FindNearbyGasStationsInput): 
 // This is a mock tool. In a real application, this would call an external API
 // like Google Maps Places API to get real data. We are mocking it here because
 // we don't have an API key configured.
+// It doesn't need an input schema because the LLM should decide to call it based on the prompt.
 const getNearbyGasStationsTool = ai.defineTool(
   {
     name: 'getNearbyGasStations',
-    description: 'Get a list of gas stations near a given latitude and longitude.',
-    inputSchema: FindNearbyGasStationsInputSchema,
+    description: 'Get a list of gas stations near the user\'s current location.',
     outputSchema: GasStationResultSchema,
   },
-  async ({ latitude, longitude }) => {
+  async () => {
     // Mock data - in a real scenario, this would be an API call.
-    console.log(`Simulating API call for gas stations near ${latitude}, ${longitude}`);
+    console.log(`Simulating API call for gas stations`);
     return {
         stations: [
             { name: 'Shell Av. Libertador', address: 'Av. del Libertador 1234, CABA', distance: '1.2 km' },
@@ -67,24 +67,23 @@ const findNearbyGasStationsFlow = ai.defineFlow(
   },
   async (input) => {
     const llmResponse = await ai.generate({
-      prompt: `Find nearby gas stations for latitude ${input.latitude} and longitude ${input.longitude}.`,
+      // The prompt is a natural language question. The model will infer it needs to use the tool.
+      prompt: `Are there any gas stations near me? My current location is latitude ${input.latitude} and longitude ${input.longitude}.`,
       tools: [getNearbyGasStationsTool],
       model: 'googleai/gemini-2.5-flash',
     });
 
     const toolRequest = llmResponse.toolRequest;
-    if (!toolRequest) {
-      // The model decided not to use the tool. Fallback.
-      return { stations: [] };
-    }
 
-    const toolResponse = await toolRequest.run();
-
-    if (toolResponse?.output) {
-        return toolResponse.output as GasStationResult;
+    if (toolRequest) {
+      const toolResponse = await toolRequest.run();
+      if (toolResponse?.output) {
+          return toolResponse.output as GasStationResult;
+      }
     }
     
-    // Fallback in case the tool doesn't work as expected
+    // Fallback in case the tool doesn't work or the model doesn't use it.
     return { stations: [] };
   }
 );
+
