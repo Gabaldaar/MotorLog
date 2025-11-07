@@ -42,6 +42,7 @@ import DeleteTripDialog from '@/components/trips/delete-trip-dialog';
 import { DateRangePicker } from '@/components/reports/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
+import { Loader2 } from 'lucide-react';
 
 type TimelineHistoryItem = {
     type: 'fuel' | 'service' | 'trip' | 'missed-log';
@@ -57,7 +58,6 @@ export default function HistoryPage() {
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  // This query fetches ALL fuel logs for calculations (like average consumption and estimation)
   const allFuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
@@ -178,13 +178,16 @@ export default function HistoryPage() {
     return { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
   }, [vehicle, avgConsumption]);
   
-  if (!vehicle || !vehicleWithAvgConsumption) {
-    return <div className="text-center">Por favor, seleccione un vehículo.</div>;
-  }
-  
   const isLoading = isLoadingLogs || isLoadingReminders || isLoadingTrips;
 
-
+  if (isLoading || !vehicle || !vehicleWithAvgConsumption) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+  
   return (
      <Card>
       <CardHeader>

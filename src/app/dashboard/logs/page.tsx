@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, Fragment } from 'react';
@@ -9,7 +10,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Gauge, Droplets, Tag, Building, User as UserIcon, Plus, Fuel, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, Gauge, Droplets, Tag, Building, User as UserIcon, Plus, Fuel, AlertTriangle, Loader2 } from 'lucide-react';
 import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
 import { usePreferences } from '@/context/preferences-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -72,7 +73,6 @@ export default function LogsPage() {
   const { consumptionUnit, getFormattedConsumption } = usePreferences();
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
-  // This query fetches ALL fuel logs for calculations (like average consumption and estimation)
   const allFuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
@@ -113,12 +113,15 @@ export default function LogsPage() {
     return { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
   }, [vehicle, avgConsumption]);
 
-
-  if (!vehicle || !vehicleWithAvgConsumption) {
-    return <div className="text-center">Por favor, seleccione un vehículo.</div>;
-  }
-  
   const lastLog = processedLogs?.[0]; // Already sorted desc
+
+  if (isLoading || !vehicle || !vehicleWithAvgConsumption) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

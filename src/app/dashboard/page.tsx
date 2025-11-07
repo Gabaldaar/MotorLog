@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -15,6 +16,7 @@ import { formatDate, formatCurrency } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
 import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
+import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
   // Sort logs by odometer ascending to calculate consumption correctly
@@ -51,7 +53,7 @@ export default function DashboardPage() {
   const firestore = useFirestore();
   const { consumptionUnit, getFormattedConsumption, urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
 
-  const fuelLogsQuery = useMemoFirebase(() => {
+  const allFuelLogsQuery = useMemoFirebase(() => {
     if (!user || !vehicle) return null;
     return query(
       collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
@@ -67,10 +69,10 @@ export default function DashboardPage() {
     );
   }, [firestore, user, vehicle]);
   
-  const { data: fuelLogsData, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(fuelLogsQuery);
+  const { data: allFuelLogsData, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(allFuelLogsQuery);
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
   
-  const vehicleFuelLogs = useMemo(() => processFuelLogs(fuelLogsData || []), [fuelLogsData]);
+  const vehicleFuelLogs = useMemo(() => processFuelLogs(allFuelLogsData || []), [allFuelLogsData]);
   const lastOdometer = useMemo(() => vehicleFuelLogs?.[0]?.odometer || 0, [vehicleFuelLogs]);
 
   const avgConsumption = useMemo(() => {
@@ -166,11 +168,7 @@ export default function DashboardPage() {
   }, [sortedPendingReminders]);
 
 
-  if (!vehicle || !vehicleWithAvgConsumption) {
-    return <div className="text-center">Por favor, seleccione un vehículo.</div>;
-  }
-  
-  if (isLoadingLogs || isLoadingReminders) {
+  if (isLoadingLogs || isLoadingReminders || !vehicle || !vehicleWithAvgConsumption) {
     return (
         <div className="flex justify-center items-center h-64">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -181,8 +179,10 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <UrgentServicesAlert reminders={urgentOrOverdueReminders} />
-      <WelcomeBanner vehicle={vehicleWithAvgConsumption} allFuelLogs={fuelLogsData || []} lastOdometer={lastOdometer} />
+      <WelcomeBanner vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogsData || []} lastOdometer={lastOdometer} />
       
+      <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogsData || []} />
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Consumo Promedio" value={getFormattedConsumption(avgConsumption)} description={consumptionUnit} />
         <StatCard title="Costo Total" value={formatCurrency(totalSpent)} />
