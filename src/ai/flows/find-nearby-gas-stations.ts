@@ -4,12 +4,12 @@
  * @fileOverview A flow to find nearby gas stations using the user's location.
  *
  * - findNearbyGasStations - A function that finds gas stations.
- * - FindNearbyGasStationsInput - The input type for the findNearbyGasStations function.
  * - GasStationResult - The output type for the findNearbyGasStations function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { generate } from 'genkit';
 
 const FindNearbyGasStationsInputSchema = z.object({
   latitude: z.number().describe('The user\'s current latitude.'),
@@ -67,16 +67,23 @@ const findNearbyGasStationsFlow = ai.defineFlow(
     outputSchema: GasStationResultSchema,
   },
   async (input) => {
-    const llmResponse = await ai.generate({
+    const llmResponse = await generate({
       prompt: `Find nearby gas stations for latitude ${input.latitude} and longitude ${input.longitude}.`,
       tools: [getNearbyGasStationsTool],
       model: 'googleai/gemini-2.5-flash',
     });
 
-    const toolResponse = llmResponse.toolRequest?.tool.output as GasStationResult;
-    
-    if (toolResponse) {
-      return toolResponse;
+    const toolRequest = llmResponse.toolRequest();
+    if (!toolRequest) {
+      // The model decided not to use the tool. Fallback.
+      return { stations: [] };
+    }
+
+    const toolResponse = await toolRequest.run();
+
+    const finalResult = toolResponse.output as GasStationResult;
+    if (finalResult) {
+      return finalResult;
     }
     
     // Fallback in case the tool doesn't work as expected
