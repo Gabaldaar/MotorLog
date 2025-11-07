@@ -36,10 +36,11 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (isLoading || !vehicles) return;
 
-    const currentVehicleId = searchParams.get('vehicle');
+    const currentVehicleIdFromUrl = searchParams.get('vehicle');
     
-    if (currentVehicleId) {
-      const vehicleFromUrl = vehicles.find(v => v.id === currentVehicleId);
+    // 1. Priority: Vehicle ID from URL
+    if (currentVehicleIdFromUrl) {
+      const vehicleFromUrl = vehicles.find(v => v.id === currentVehicleIdFromUrl);
       if (vehicleFromUrl) {
         if (selectedVehicle?.id !== vehicleFromUrl.id) {
           setSelectedVehicle(vehicleFromUrl);
@@ -47,20 +48,31 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
         return; 
       }
     }
-    
-    if(selectedVehicle && vehicles.some(v => v.id === selectedVehicle.id)) {
-        return;
-    }
 
+    // 2. Priority: Last selected vehicle from localStorage
+    const lastSelectedVehicleId = localStorage.getItem('lastSelectedVehicleId');
+    if (lastSelectedVehicleId) {
+        const lastSelected = vehicles.find(v => v.id === lastSelectedVehicleId);
+        if (lastSelected) {
+            setSelectedVehicle(lastSelected);
+            // Update URL silently
+            const params = new URLSearchParams(searchParams.toString());
+            params.set('vehicle', lastSelected.id);
+            router.replace(`${pathname}?${params.toString()}`);
+            return;
+        }
+    }
+    
+    // 3. Fallback: First vehicle in the list
     if (vehicles.length > 0) {
       const vehicleToSelect = vehicles[0];
       setSelectedVehicle(vehicleToSelect);
-      if (currentVehicleId !== vehicleToSelect.id) {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('vehicle', vehicleToSelect.id);
-        router.replace(`${pathname}?${params.toString()}`);
-      }
+      // Update URL silently
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('vehicle', vehicleToSelect.id);
+      router.replace(`${pathname}?${params.toString()}`);
     } else {
+      // 4. No vehicles available
       setSelectedVehicle(null);
       const params = new URLSearchParams(searchParams.toString());
       if (params.has('vehicle')) {
@@ -68,12 +80,13 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
           router.replace(`${pathname}?${params.toString()}`);
       }
     }
-  }, [searchParams, vehicles, pathname, router, isLoading, selectedVehicle]);
+  }, [searchParams, vehicles, pathname, router, isLoading]);
 
   const selectVehicle = (vehicleId: string) => {
     const vehicle = vehicles?.find(v => v.id === vehicleId);
     if (vehicle) {
       setSelectedVehicle(vehicle);
+      localStorage.setItem('lastSelectedVehicleId', vehicleId); // Save to localStorage
       const params = new URLSearchParams(searchParams.toString());
       params.set('vehicle', vehicleId);
       router.push(`${pathname}?${params.toString()}`);
