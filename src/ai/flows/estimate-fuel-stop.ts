@@ -73,9 +73,7 @@ const estimateFuelStopFlow = ai.defineFlow(
     const estimatedFuelLevel = input.isLastFillUp ? input.fuelCapacity : input.lastLiters;
     const estimatedRange = estimatedFuelLevel * input.avgConsumption;
 
-    const { output } = await estimateFuelStopPrompt.generate({
-        data: input
-    });
+    const { output } = await estimateFuelStopPrompt(input);
     
     if (!output) {
         throw new Error("Could not get a response from the model.");
