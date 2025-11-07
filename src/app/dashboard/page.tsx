@@ -15,6 +15,7 @@ import { formatDate, formatCurrency } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
 import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
+import EstimatedRefuelCard from '@/components/ai/estimated-refuel-card';
 
 function processFuelLogs(logs: ProcessedFuelLog[], vehicle: { averageConsumptionKmPerLiter?: number }): { processedLogs: ProcessedFuelLog[], avgConsumption: number } {
   const sortedLogs = logs
@@ -204,16 +205,16 @@ export default function DashboardPage() {
           <FuelConsumptionChart data={vehicleFuelLogs} />
         </div>
         <div className="lg:col-span-2">
-          <RecentFuelLogs data={vehicleFuelLogs} />
+           <RecentFuelLogs data={vehicleFuelLogs} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-           <ServiceReminders data={sortedPendingReminders} />
+            <ServiceReminders data={sortedPendingReminders} />
         </div>
         <div className="lg:col-span-2">
-          
+            <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} lastLog={lastFuelLog?.[0]} />
         </div>
       </div>
     </div>

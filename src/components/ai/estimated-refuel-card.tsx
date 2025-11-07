@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { Vehicle, ProcessedFuelLog } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +25,7 @@ export default function EstimatedRefuelCard({ vehicle, lastLog }: EstimatedRefue
 
 
   const getEstimation = async () => {
-    if (!canCalculate) {
+    if (!canCalculate || !vehicle.averageConsumptionKmPerLiter || !lastLog) {
       setError("No hay suficientes datos para generar una estimación. Asegúrate de tener al menos un registro de combustible y un consumo promedio definido para el vehículo.");
       return;
     }
@@ -38,12 +38,12 @@ export default function EstimatedRefuelCard({ vehicle, lastLog }: EstimatedRefue
         vehicleMake: vehicle.make,
         vehicleModel: vehicle.model,
         vehicleYear: vehicle.year,
-        avgConsumption: vehicle.averageConsumptionKmPerLiter!,
+        avgConsumption: vehicle.averageConsumptionKmPerLiter,
         fuelCapacity: vehicle.fuelCapacityLiters,
-        lastOdometer: lastLog!.odometer,
-        lastFuelDate: lastLog!.date,
-        lastLiters: lastLog!.liters,
-        isLastFillUp: lastLog!.isFillUp,
+        lastOdometer: lastLog.odometer,
+        lastFuelDate: lastLog.date,
+        lastLiters: lastLog.liters,
+        isLastFillUp: lastLog.isFillUp,
       });
       setResult(estimation);
     } catch (e: any) {

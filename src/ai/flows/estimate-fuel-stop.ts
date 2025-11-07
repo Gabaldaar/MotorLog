@@ -28,7 +28,7 @@ export type FuelStopInput = z.infer<typeof FuelStopInputSchema>;
 export type FuelStopOutput = z.infer<typeof FuelStopOutputSchema>;
 
 
-const prompt = ai.definePrompt(
+const estimateFuelStopPrompt = ai.definePrompt(
     {
       name: 'estimateFuelStopPrompt',
       input: { schema: FuelStopInputSchema },
@@ -61,9 +61,9 @@ const prompt = ai.definePrompt(
     }
   );
 
-export const estimateFuelStop = ai.defineFlow(
+const estimateFuelStopFlow = ai.defineFlow(
   {
-    name: 'estimateFuelStop',
+    name: 'estimateFuelStopFlow',
     inputSchema: FuelStopInputSchema,
     outputSchema: FuelStopOutputSchema,
   },
@@ -73,8 +73,8 @@ export const estimateFuelStop = ai.defineFlow(
     const estimatedFuelLevel = input.isLastFillUp ? input.fuelCapacity : input.lastLiters;
     const estimatedRange = estimatedFuelLevel * input.avgConsumption;
 
-    const { output } = await prompt({
-        ...input
+    const { output } = await estimateFuelStopPrompt.generate({
+        data: input
     });
     
     if (!output) {
@@ -88,3 +88,7 @@ export const estimateFuelStop = ai.defineFlow(
     return output;
   }
 );
+
+export async function estimateFuelStop(input: FuelStopInput): Promise<FuelStopOutput> {
+    return estimateFuelStopFlow(input);
+}
