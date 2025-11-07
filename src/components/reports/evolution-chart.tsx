@@ -2,7 +2,7 @@
 
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 
 interface EvolutionChartProps<T> {
@@ -21,6 +21,8 @@ export function EvolutionChart<T>({ title, data, dataKey, valueKey, valueFormatt
     ...item,
     formattedDate: formatDate(item[dataKey] as string),
   }));
+
+  const isCurrency = valueKey === 'pricePerLiter';
 
   return (
     <Card>
@@ -47,7 +49,7 @@ export function EvolutionChart<T>({ title, data, dataKey, valueKey, valueFormatt
                 tick={{ fontSize: 12 }} 
                 tickLine={false} 
                 axisLine={false}
-                tickFormatter={valueFormatter}
+                tickFormatter={(value) => isCurrency ? formatCurrency(value) : valueFormatter(value)}
               />
               <Tooltip
                 cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 1, strokeDasharray: '3 3' }}
@@ -56,7 +58,7 @@ export function EvolutionChart<T>({ title, data, dataKey, valueKey, valueFormatt
                   borderColor: 'hsl(var(--border))',
                   borderRadius: 'var(--radius)',
                 }}
-                formatter={(value: number) => [valueFormatter(value), tooltipLabel]}
+                formatter={(value: number) => [isCurrency ? formatCurrency(value) : valueFormatter(value), tooltipLabel]}
                 labelFormatter={(label) => `Fecha: ${label}`}
               />
               <Line 

@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useMemo, useState, Fragment } from 'react';
 import type { ProcessedFuelLog } from '@/lib/types';
 import { useVehicles } from '@/context/vehicle-context';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import AddFuelLogDialog from '@/components/dashboard/add-fuel-log-dialog';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
@@ -144,12 +143,12 @@ export default function LogsPage() {
                                               ) : (
                                                   <Badge className="bg-amber-500/80 text-white">Parcial</Badge>
                                               )}
-                                              <p className="text-sm text-muted-foreground sm:hidden truncate">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L</p>
+                                              <p className="text-sm text-muted-foreground sm:hidden truncate">{formatCurrency(log.totalCost)} por {log.liters.toFixed(2)}L</p>
                                           </div>
                                       </div>
                                       <div className="hidden sm:flex items-center gap-6 text-sm text-right ml-4">
                                           <div className="flex-1">
-                                              <p>${log.totalCost.toFixed(2)}</p>
+                                              <p>{formatCurrency(log.totalCost)}</p>
                                               <p className="text-muted-foreground text-xs">{log.liters.toFixed(2)} L</p>
                                           </div>
                                           <div className="w-24">
@@ -178,7 +177,7 @@ export default function LogsPage() {
                                     </div>
                                     <div className="flex justify-between text-sm items-center">
                                         <span className="flex items-center gap-2 text-muted-foreground"><Tag className="h-4 w-4" /> Precio/Litro</span>
-                                        <span>${log.pricePerLiter.toFixed(2)}</span>
+                                        <span>{formatCurrency(log.pricePerLiter)}</span>
                                     </div>
                                     {log.gasStation && (
                                         <div className="flex justify-between text-sm items-center">
@@ -222,5 +221,3 @@ export default function LogsPage() {
     </div>
   );
 }
-
-    

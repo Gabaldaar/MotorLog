@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
@@ -28,7 +27,7 @@ import {
   Wallet,
   Droplets
 } from 'lucide-react';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate, formatDateTime, formatCurrency } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import AddFuelLogDialog from '@/components/dashboard/add-fuel-log-dialog';
 import DeleteFuelLogDialog from '@/components/dashboard/delete-fuel-log-dialog';
@@ -336,7 +335,7 @@ function FuelLogItemContent({ log, vehicle, lastLog }: { log: ProcessedFuelLog, 
                     ) : (
                         <Badge className="bg-amber-500/80 text-white">Parcial</Badge>
                     )}
-                    <p className="text-sm text-muted-foreground truncate">${log.totalCost.toFixed(2)} por {log.liters.toFixed(2)}L</p>
+                    <p className="text-sm text-muted-foreground truncate">{formatCurrency(log.totalCost)} por {log.liters.toFixed(2)}L</p>
                 </div>
             </div>
             <div className="text-right ml-auto">
@@ -349,7 +348,7 @@ function FuelLogItemContent({ log, vehicle, lastLog }: { log: ProcessedFuelLog, 
           <div className="space-y-3 pt-4 border-t pl-12">
               <div className="grid grid-cols-2 gap-4 text-sm">
                    <div>
-                      <p className="font-medium">${log.pricePerLiter.toFixed(2)}</p>
+                      <p className="font-medium">{formatCurrency(log.pricePerLiter)}</p>
                       <p className="text-xs text-muted-foreground">Precio/Litro</p>
                    </div>
                    <div>
@@ -421,7 +420,7 @@ function ServiceItemContent({ reminder, vehicleId, lastOdometer }: { reminder: P
                  <div className="space-y-2 text-sm">
                     {reminder.cost && <div className="flex justify-between">
                         <span className="flex items-center gap-2 text-muted-foreground"><DollarSign className="h-4 w-4" /> Costo</span>
-                        <span>${reminder.cost.toFixed(2)}</span>
+                        <span>{formatCurrency(reminder.cost)}</span>
                     </div>}
                     {reminder.serviceLocation && <div className="flex justify-between">
                         <span className="flex items-center gap-2 text-muted-foreground"><Building className="h-4 w-4" /> Lugar</span>
@@ -553,7 +552,7 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
                 <div className="flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">${totalCost.toFixed(2)}</p>
+                        <p className="font-medium">{formatCurrency(totalCost)}</p>
                         <p className="text-xs text-muted-foreground">Costo Total Viaje</p>
                     </div>
                 </div>
@@ -594,12 +593,12 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
             )}
             {(trip.expenses && trip.expenses.length > 0) && (
                  <div className="pt-2 text-sm">
-                    <p className="font-medium">Otros Gastos (${otherExpenses.toFixed(2)}):</p>
+                    <p className="font-medium">Otros Gastos ({formatCurrency(otherExpenses)}):</p>
                      <ul className="text-muted-foreground list-disc pl-5 mt-1">
                         {trip.expenses.map((expense, index) => (
                             <li key={index} className="flex justify-between">
                                 <span>{expense.description}</span>
-                                <span>${expense.amount.toFixed(2)}</span>
+                                <span>{formatCurrency(expense.amount)}</span>
                             </li>
                         ))}
                     </ul>
@@ -622,5 +621,3 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
     </>
   )
 }
-
-    

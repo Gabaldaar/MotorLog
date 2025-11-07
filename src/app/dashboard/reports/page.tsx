@@ -16,6 +16,7 @@ import FuelConsumptionChart from '@/components/dashboard/fuel-consumption-chart'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MonthlyCostsChart } from '@/components/reports/monthly-costs-chart';
 import { MonthlyDistanceChart } from '@/components/reports/monthly-distance-chart';
+import { formatCurrency } from '@/lib/utils';
 
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
@@ -256,9 +257,9 @@ export default function ReportsPage() {
                     ) : (
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <ReportStatCard icon={DollarSign} title="Costo Total" value={`$${reportData.totalCost.toFixed(2)}`} />
-                                <ReportStatCard icon={Fuel} title="Gasto en Combustible" value={`$${reportData.totalFuelCost.toFixed(2)}`} />
-                                <ReportStatCard icon={Wrench} title="Gasto en Servicios" value={`$${reportData.totalServiceCost.toFixed(2)}`} />
+                                <ReportStatCard icon={DollarSign} title="Costo Total" value={formatCurrency(reportData.totalCost)} />
+                                <ReportStatCard icon={Fuel} title="Gasto en Combustible" value={formatCurrency(reportData.totalFuelCost)} />
+                                <ReportStatCard icon={Wrench} title="Gasto en Servicios" value={formatCurrency(reportData.totalServiceCost)} />
                                 <ReportStatCard icon={Route} title="Distancia Recorrida" value={`${reportData.kmTraveled.toLocaleString()} km`} />
                             </div>
 
@@ -268,12 +269,12 @@ export default function ReportsPage() {
                                     <CardTitle className="flex items-center gap-2"><DollarSign/> Análisis de Costos</CardTitle>
                                     </CardHeader>
                                     <CardContent className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                                        <ReportStatCard icon={Fuel} title="Costo Combustible / km" value={`$${reportData.fuelCostPerKm.toFixed(3)}`} variant="small" />
-                                        <ReportStatCard icon={Wrench} title="Costo Servicios / km" value={`$${reportData.serviceCostPerKm.toFixed(3)}`} variant="small" />
-                                        <ReportStatCard icon={Car} title="Costo Total / km" value={`$${reportData.costPerKm.toFixed(3)}`} variant="small" />
-                                        <ReportStatCard icon={Fuel} title="Costo Combustible / día" value={`$${reportData.fuelCostPerDay.toFixed(2)}`} variant="small" />
-                                        <ReportStatCard icon={Wrench} title="Costo Servicios / día" value={`$${reportData.serviceCostPerDay.toFixed(2)}`} variant="small" />
-                                        <ReportStatCard icon={Calendar} title="Costo Total / día" value={`$${reportData.costPerDay.toFixed(2)}`} variant="small" />
+                                        <ReportStatCard icon={Fuel} title="Costo Combustible / km" value={`${formatCurrency(reportData.fuelCostPerKm)}`} variant="small" />
+                                        <ReportStatCard icon={Wrench} title="Costo Servicios / km" value={`${formatCurrency(reportData.serviceCostPerKm)}`} variant="small" />
+                                        <ReportStatCard icon={Car} title="Costo Total / km" value={`${formatCurrency(reportData.costPerKm)}`} variant="small" />
+                                        <ReportStatCard icon={Fuel} title="Costo Combustible / día" value={`${formatCurrency(reportData.fuelCostPerDay)}`} variant="small" />
+                                        <ReportStatCard icon={Wrench} title="Costo Servicios / día" value={`${formatCurrency(reportData.serviceCostPerDay)}`} variant="small" />
+                                        <ReportStatCard icon={Calendar} title="Costo Total / día" value={`${formatCurrency(reportData.costPerDay)}`} variant="small" />
                                     </CardContent>
                                 </Card>
                                 
@@ -308,7 +309,7 @@ export default function ReportsPage() {
                                 data={reportData.fuelLogs}
                                 dataKey="date"
                                 valueKey="pricePerLiter"
-                                valueFormatter={(val) => `$${val.toFixed(2)} / L`}
+                                valueFormatter={(val) => `${formatCurrency(val)} / L`}
                                 tooltipLabel="Precio/L"
                                 icon={Droplets}
                                 />

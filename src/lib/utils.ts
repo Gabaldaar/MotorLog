@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency = 'USD') {
+  if (isNaN(amount)) return '';
   // es-AR (Argentina) locale uses '.' for thousands and ',' for decimals.
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -13,6 +14,21 @@ export function formatCurrency(amount: number, currency = 'USD') {
     minimumFractionDigits: 2,
   }).format(amount);
 }
+
+// New function to parse currency string like "1.200,50" to a number 1200.50
+export function parseCurrency(value: string | number): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value !== 'string' || !value) {
+    return 0;
+  }
+  // Remove thousand separators (.) and then replace decimal comma (,) with a dot (.)
+  const cleanedValue = value.replace(/\./g, '').replace(',', '.');
+  const number = parseFloat(cleanedValue);
+  return isNaN(number) ? 0 : number;
+}
+
 
 export function formatDate(dateString: string) {
   if (!dateString) return 'N/A';

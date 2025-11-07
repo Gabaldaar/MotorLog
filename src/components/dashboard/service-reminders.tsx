@@ -8,7 +8,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import type { ProcessedServiceReminder } from '@/lib/types';
 import { Wrench, Calendar, Gauge, AlertTriangle } from 'lucide-react';
-import { formatDate, cn } from '@/lib/utils';
+import { formatDate, cn, formatCurrency } from '@/lib/utils';
 import { ScrollArea } from '../ui/scroll-area';
 
 interface ServiceRemindersProps {
@@ -53,6 +53,12 @@ export default function ServiceReminders({ data }: ServiceRemindersProps) {
                          <span className='flex items-center gap-1.5'>
                             <Gauge className="h-3.5 w-3.5" />
                             {reminder.dueOdometer.toLocaleString()} km
+                        </span>
+                      )}
+                       {reminder.isCompleted && reminder.cost && (
+                         <span className='flex items-center gap-1.5'>
+                            <Gauge className="h-3.5 w-3.5" />
+                            {formatCurrency(reminder.cost)}
                         </span>
                       )}
                     </div>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense } from 'react';
@@ -12,7 +11,7 @@ import { useVehicles } from '@/context/vehicle-context';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
 import { Loader2 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
 import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
@@ -191,7 +190,7 @@ export default function DashboardPage() {
       <WelcomeBanner vehicle={vehicleWithAvgConsumption} lastLog={vehicleFuelLogs[0]} />
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Consumo Promedio" value={getFormattedConsumption(avgConsumption)} description={consumptionUnit} />
-        <StatCard title="Costo Total" value={`$${totalSpent.toFixed(2)}`} />
+        <StatCard title="Costo Total" value={formatCurrency(totalSpent)} />
         <StatCard title="Litros Totales" value={`${totalLiters.toFixed(2)} L`} />
         <StatCard 
           title="Próximo Servicio" 

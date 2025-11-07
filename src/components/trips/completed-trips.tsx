@@ -1,11 +1,10 @@
-
 'use client';
 
 import type { Trip, ProcessedFuelLog, Vehicle, TripExpense } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Map, Edit, Trash2, Clock, Droplets, Wallet, Route, CircleDollarSign, User } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatCurrency } from '@/lib/utils';
 import AddTripDialog from '../dashboard/add-trip-dialog';
 import { Button } from '../ui/button';
 import { useMemo } from 'react';
@@ -103,14 +102,14 @@ function TripDetails({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: Vehi
                  <div className="flex items-center gap-2">
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">${totalCost.toFixed(2)}</p>
+                        <p className="font-medium">{formatCurrency(totalCost)}</p>
                         <p className="text-xs text-muted-foreground">Costo Total Viaje</p>
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
                     <Droplets className="h-4 w-4 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">{fuelConsumed.toFixed(2)} L (${fuelCost.toFixed(2)})</p>
+                        <p className="font-medium">{fuelConsumed.toFixed(2)} L ({formatCurrency(fuelCost)})</p>
                         <p className="text-xs text-muted-foreground">Combustible (Est.)</p>
                     </div>
                 </div>
@@ -131,7 +130,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: Vehi
                  <div className="flex items-center gap-2">
                     <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     <div>
-                        <p className="font-medium">${costPerKm.toFixed(3)}</p>
+                        <p className="font-medium">{formatCurrency(costPerKm)}</p>
                         <p className="text-xs text-muted-foreground">Costo / Km</p>
                     </div>
                 </div>
@@ -151,12 +150,12 @@ function TripDetails({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: Vehi
             )}
             {(trip.expenses && trip.expenses.length > 0) && (
                  <div className="pt-2 text-sm">
-                    <p className="font-medium">Otros Gastos (${otherExpenses.toFixed(2)}):</p>
+                    <p className="font-medium">Otros Gastos ({formatCurrency(otherExpenses)}):</p>
                      <ul className="text-muted-foreground list-disc pl-5 mt-1">
                         {trip.expenses.map((expense, index) => (
                             <li key={index} className="flex justify-between">
                                 <span>{expense.description}</span>
-                                <span>${expense.amount.toFixed(2)}</span>
+                                <span>{formatCurrency(expense.amount)}</span>
                             </li>
                         ))}
                     </ul>

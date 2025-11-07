@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatCurrency } from '@/lib/utils';
 import type { ProcessedFuelLog } from '@/lib/types';
 import { ScrollArea } from '../ui/scroll-area';
 
@@ -46,7 +46,7 @@ export default function RecentFuelLogs({ data }: RecentFuelLogsProps) {
                   <TableRow key={log.id}>
                     <TableCell>{formatDate(log.date)}</TableCell>
                     <TableCell className="text-right">{log.liters.toFixed(2)}L</TableCell>
-                    <TableCell className="text-right">${log.totalCost.toFixed(2)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(log.totalCost)}</TableCell>
                   </TableRow>
                 ))
               ) : (

@@ -39,7 +39,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatDate, parseCurrency } from '@/lib/utils';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -51,9 +51,9 @@ const formSchema = z.object({
     required_error: 'La fecha es obligatoria.',
   }),
   odometer: z.coerce.number().min(1, 'El odómetro es obligatorio.'),
-  totalCost: z.coerce.number().min(0.01, 'El costo total es obligatorio.'),
-  liters: z.coerce.number().min(0.01, 'La cantidad de litros es obligatoria.'),
-  pricePerLiter: z.coerce.number().min(0.01, 'El precio por litro es obligatorio.'),
+  totalCost: z.string().min(1, 'El costo total es obligatorio.'),
+  liters: z.string().min(1, 'La cantidad de litros es obligatoria.'),
+  pricePerLiter: z.string().min(1, 'El precio por litro es obligatorio.'),
   fuelType: z.string({
     required_error: 'El tipo de combustible es obligatorio.',
   }),
@@ -110,9 +110,9 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     defaultValues: {
       date: new Date(),
       odometer: undefined,
-      totalCost: undefined,
-      liters: undefined,
-      pricePerLiter: undefined,
+      totalCost: '',
+      liters: '',
+      pricePerLiter: '',
       fuelType: vehicle?.defaultFuelType,
       isFillUp: true,
       gasStation: '',
@@ -124,12 +124,14 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const watchedValues = watch();
 
   useEffect(() => {
+    const toLocaleString = (num: number | undefined) => num?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '';
+
     const defaultVals = {
       date: isEditing && fuelLog ? new Date(fuelLog.date) : new Date(),
       odometer: isEditing && fuelLog ? fuelLog.odometer : undefined,
-      totalCost: isEditing && fuelLog ? fuelLog.totalCost : undefined,
-      liters: isEditing && fuelLog ? fuelLog.liters : undefined,
-      pricePerLiter: isEditing && fuelLog ? fuelLog.pricePerLiter : undefined,
+      totalCost: isEditing && fuelLog ? toLocaleString(fuelLog.totalCost) : '',
+      liters: isEditing && fuelLog ? toLocaleString(fuelLog.liters) : '',
+      pricePerLiter: isEditing && fuelLog ? toLocaleString(fuelLog.pricePerLiter) : '',
       fuelType: (isEditing && fuelLog?.fuelType) || vehicle?.defaultFuelType,
       isFillUp: isEditing ? (fuelLog.isFillUp !== undefined ? fuelLog.isFillUp : true) : true,
       gasStation: isEditing && fuelLog ? fuelLog.gasStation : '',
@@ -143,19 +145,21 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     const { totalCost, liters, pricePerLiter } = watchedValues;
     if (!lastEdited) return;
 
-    const cost = totalCost ? Number(totalCost) : 0;
-    const ltrs = liters ? Number(liters) : 0;
-    const price = pricePerLiter ? Number(pricePerLiter) : 0;
+    const cost = parseCurrency(totalCost);
+    const ltrs = parseCurrency(liters);
+    const price = parseCurrency(pricePerLiter);
+
+    const format = (num: number) => num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     if (lastEdited !== 'pricePerLiter' && cost > 0 && ltrs > 0) {
       const newPrice = cost / ltrs;
-      setValue('pricePerLiter', parseFloat(newPrice.toFixed(2)), { shouldValidate: true });
+      setValue('pricePerLiter', format(newPrice), { shouldValidate: true });
     } else if (lastEdited !== 'liters' && cost > 0 && price > 0) {
       const newLiters = cost / price;
-      setValue('liters', parseFloat(newLiters.toFixed(2)), { shouldValidate: true });
+      setValue('liters', format(newLiters), { shouldValidate: true });
     } else if (lastEdited !== 'totalCost' && ltrs > 0 && price > 0) {
       const newCost = ltrs * price;
-      setValue('totalCost', parseFloat(newCost.toFixed(2)), { shouldValidate: true });
+      setValue('totalCost', format(newCost), { shouldValidate: true });
     }
   }, [watchedValues.totalCost, watchedValues.liters, watchedValues.pricePerLiter, lastEdited, setValue]);
 
@@ -204,7 +208,10 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
         vehicleId,
         userId: authUser.uid,
         username: userProfile.username || authUser.email || 'Usuario',
-        gasStation: values.gasStation || ''
+        gasStation: values.gasStation || '',
+        totalCost: parseCurrency(values.totalCost),
+        liters: parseCurrency(values.liters),
+        pricePerLiter: parseCurrency(values.pricePerLiter),
     };
 
     setDocumentNonBlocking(fuelLogRef, fuelLogData, { merge: true });
@@ -303,7 +310,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                   <FormItem>
                     <FormLabel>Costo Total</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
+                      <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -316,7 +323,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                   <FormItem>
                     <FormLabel>$/Litro</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
+                      <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -329,7 +336,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                   <FormItem>
                     <FormLabel>Litros</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
+                      <Input type="text" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -4,6 +4,7 @@ import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAx
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useMemo } from 'react';
 import { DollarSign } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 interface ChartData {
     name: string;
@@ -44,17 +45,17 @@ export function MonthlyCostsChart({ data }: MonthlyCostsChartProps) {
               <div className="h-2 w-2 shrink-0 rounded-full mr-1" style={{ backgroundColor: 'hsl(var(--chart-1))' }} />
               <div className="text-xs text-muted-foreground">Combustible</div>
             </div>
-            <div className="text-right text-xs">${combustible.toFixed(2)}</div>
+            <div className="text-right text-xs">{formatCurrency(combustible)}</div>
             <div className="flex items-center">
               <div className="h-2 w-2 shrink-0 rounded-full mr-1" style={{ backgroundColor: 'hsl(var(--chart-2))' }} />
               <div className="text-xs text-muted-foreground">Servicios</div>
             </div>
-             <div className="text-right text-xs">${servicios.toFixed(2)}</div>
+             <div className="text-right text-xs">{formatCurrency(servicios)}</div>
              <div className="flex items-center">
               <div className="h-2 w-2 shrink-0 rounded-full mr-1" style={{ backgroundColor: 'hsl(var(--chart-4))' }} />
               <div className="font-semibold text-sm">Total</div>
             </div>
-             <div className="font-semibold text-right text-sm">${total.toFixed(2)}</div>
+             <div className="font-semibold text-right text-sm">{formatCurrency(total)}</div>
           </div>
         </div>
       );

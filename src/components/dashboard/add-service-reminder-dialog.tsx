@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -33,7 +32,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, parseCurrency } from '@/lib/utils';
 import type { ServiceReminder, ConfigItem } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
@@ -55,7 +54,7 @@ const formSchema = z.object({
   completedDate: z.date().optional(),
   completedOdometer: z.coerce.number().optional(),
   serviceLocation: z.string().optional(),
-cost: z.coerce.number().optional(),
+  cost: z.string().optional(),
 }).refine(data => data.isCompleted || data.dueDate || data.dueOdometer, {
   message: "Debes especificar al menos una fecha o un odómetro para el recordatorio.",
   path: ["dueDate"], 
@@ -111,6 +110,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
 
   useEffect(() => {
     if (open) {
+      const toLocaleString = (num: number | null | undefined) => num?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '';
       reset({
         serviceType: reminder?.serviceType || '',
         notes: reminder?.notes || '',
@@ -124,7 +124,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
         completedDate: reminder?.completedDate ? new Date(reminder.completedDate) : new Date(),
         completedOdometer: reminder?.completedOdometer || lastOdometer || undefined,
         serviceLocation: reminder?.serviceLocation || '',
-        cost: reminder?.cost || undefined,
+        cost: reminder?.cost ? toLocaleString(reminder.cost) : '',
       });
     }
   }, [open, reminder, reset, lastOdometer]);
@@ -158,7 +158,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     
     const dateForTimeline = values.completedDate ? values.completedDate.toISOString() : (values.dueDate ? values.dueDate.toISOString() : new Date().toISOString());
 
-    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; date: string; } = {
+    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate' | 'cost'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; date: string; cost: number | null } = {
       id: reminderId,
       vehicleId,
       serviceType: values.serviceType,
@@ -169,7 +169,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       recurrenceIntervalKm: values.isRecurring ? values.recurrenceIntervalKm : null,
       completedOdometer: values.isCompleted ? values.completedOdometer : null,
       serviceLocation: values.isCompleted ? values.serviceLocation : null,
-      cost: values.isCompleted ? values.cost : null,
+      cost: values.isCompleted ? parseCurrency(values.cost || '0') : null,
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null,
       date: dateForTimeline
@@ -415,7 +415,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                           <FormItem>
                             <FormLabel>Costo del Servicio (Opcional)</FormLabel>
                             <FormControl>
-                              <Input type="number" step="0.01" placeholder="$" {...field} value={field.value ?? ''}/>
+                              <Input type="text" placeholder="$" {...field} value={field.value ?? ''}/>
                             </FormControl>
                             <FormMessage />
                           </FormItem>

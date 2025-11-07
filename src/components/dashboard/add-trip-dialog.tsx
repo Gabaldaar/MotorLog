@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -30,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { toDateTimeLocalString } from '@/lib/utils';
+import { toDateTimeLocalString, parseCurrency } from '@/lib/utils';
 import type { Trip, ConfigItem, User } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
@@ -41,7 +40,7 @@ import { Label } from '../ui/label';
 
 const expenseSchema = z.object({
   description: z.string().min(1, 'La descripción es obligatoria.'),
-  amount: z.coerce.number().min(0.01, 'El monto debe ser positivo.'),
+  amount: z.string().min(1, 'El monto debe ser positivo.'),
 });
 
 const formSchema = z.object({
@@ -128,6 +127,13 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
   useEffect(() => {
     if (open) {
       const now = toDateTimeLocalString(new Date());
+      const toLocaleString = (num: number | undefined) => num?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '';
+
+      const expenses = trip?.expenses?.map(e => ({
+        description: e.description,
+        amount: toLocaleString(e.amount),
+      })) || [];
+
       reset({
         tripType: trip?.tripType || '',
         destination: trip?.destination || '',
@@ -137,7 +143,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: trip?.status || 'active',
         endDate: trip?.endDate ? toDateTimeLocalString(new Date(trip.endDate)) : now,
         endOdometer: trip?.endOdometer || lastOdometer || 0,
-        expenses: trip?.expenses || [],
+        expenses,
       });
     }
   }, [open, trip, reset, lastOdometer]);
@@ -169,7 +175,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         notes: values.notes,
         startOdometer: values.startOdometer,
         status: values.status,
-        expenses: values.expenses || [],
+        expenses: values.expenses?.map(e => ({ description: e.description, amount: parseCurrency(e.amount) })) || [],
         startDate: new Date(values.startDate).toISOString(),
         ...(values.status === 'completed' && values.endDate && values.endOdometer && {
             endOdometer: values.endOdometer,
@@ -278,7 +284,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                               control={control}
                               name={`expenses.${index}.amount`}
                               render={({ field }) => (
-                                  <Input {...field} type="number" step="0.01" placeholder="$" className="w-24" />
+                                  <Input {...field} type="text" placeholder="$" className="w-24" />
                               )}
                             />
                             <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
@@ -292,7 +298,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                         variant="outline"
                         size="sm"
                         className="mt-2"
-                        onClick={() => append({ description: "", amount: 0 })}
+                        onClick={() => append({ description: "", amount: '' })}
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Añadir Gasto
