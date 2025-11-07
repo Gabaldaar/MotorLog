@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, Fragment } from 'react';
@@ -161,23 +162,28 @@ export default function HistoryPage() {
     return combined.sort((a, b) => b.sortKey - a.sortKey);
 
   }, [allFuelLogs, serviceReminders, trips, lastOdometer, urgencyThresholdDays, urgencyThresholdKm, dateRange]);
+    
+  const lastLogForNewEntry = allFuelLogs?.[0];
+
+  const avgConsumption = useMemo(() => {
+    if (!allFuelLogs) return vehicle?.averageConsumptionKmPerLiter || 0;
+    const consumptionLogs = allFuelLogs.filter(log => 'consumption' in log && log.consumption && log.consumption > 0);
+    return consumptionLogs.length > 0
+      ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
+      : vehicle?.averageConsumptionKmPerLiter || 0;
+  }, [allFuelLogs, vehicle?.averageConsumptionKmPerLiter]);
+
+  const vehicleWithAvgConsumption = useMemo(() => {
+    if (!vehicle) return null;
+    return { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
+  }, [vehicle, avgConsumption]);
   
-  if (!vehicle) {
+  if (!vehicle || !vehicleWithAvgConsumption) {
     return <div className="text-center">Por favor, seleccione un vehículo.</div>;
   }
   
   const isLoading = isLoadingLogs || isLoadingReminders || isLoadingTrips;
-  const lastLogForNewEntry = allFuelLogs?.[0];
 
-  const avgConsumption = useMemo(() => {
-    if (!allFuelLogs) return vehicle.averageConsumptionKmPerLiter || 0;
-    const consumptionLogs = allFuelLogs.filter(log => 'consumption' in log && log.consumption && log.consumption > 0);
-    return consumptionLogs.length > 0
-      ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
-      : vehicle.averageConsumptionKmPerLiter || 0;
-  }, [allFuelLogs, vehicle.averageConsumptionKmPerLiter]);
-
-  const vehicleWithAvgConsumption = { ...vehicle, averageConsumptionKmPerLiter: avgConsumption };
 
   return (
      <Card>
@@ -542,3 +548,5 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
     </>
   )
 }
+
+    
