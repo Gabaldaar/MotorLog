@@ -23,7 +23,7 @@ export function formatDate(dateString: string) {
 }
 
 export function formatDateTime(dateString: string) {
-  if (!dateString) return 'N/A';
+  if (!dateString) return 'N A';
   return new Date(dateString).toLocaleString('es-ES', {
     year: 'numeric',
     month: 'short',
