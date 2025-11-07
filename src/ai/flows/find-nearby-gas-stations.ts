@@ -23,6 +23,8 @@ const GasStationResultSchema = z.object({
       name: z.string().describe('The name of the gas station.'),
       address: z.string().describe('The address of the gas station.'),
       distance: z.string().describe('The distance from the user in kilometers.'),
+      latitude: z.number().describe('The latitude of the gas station.'),
+      longitude: z.number().describe('The longitude of the gas station.'),
     })
   ).describe('A list of nearby gas stations.'),
 });
@@ -83,10 +85,12 @@ const getNearbyGasStationsTool = ai.defineTool(
         const distanceKm = R * c;
 
         return {
-          id: place.place_id, // Use the unique place_id
+          id: place.place_id,
           name: place.name,
           address: place.vicinity,
           distance: `${distanceKm.toFixed(1)} km`,
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
         };
       }).sort((a: { distance: string }, b: { distance: string }) => parseFloat(a.distance) - parseFloat(b.distance));
 

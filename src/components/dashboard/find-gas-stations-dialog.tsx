@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, MapPin, Search } from 'lucide-react';
+import { Loader2, MapPin, Search, Route } from 'lucide-react';
 import { ai } from '@/ai/client';
 import type { GasStationResult } from '@/ai/flows/find-nearby-gas-stations';
 import { useToast } from '@/hooks/use-toast';
@@ -90,6 +90,12 @@ export default function FindGasStationsDialog({ onStationSelect }: FindGasStatio
         description: `${name} ha sido añadida al campo de gasolinera.`,
     })
   };
+  
+  const handleGetDirections = (e: React.MouseEvent, station: GasStationResult['stations'][0]) => {
+    e.stopPropagation(); // Prevent the station from being selected when clicking the directions button
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${station.latitude},${station.longitude}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 
   const resetState = () => {
     setLocationState('idle');
@@ -115,7 +121,7 @@ export default function FindGasStationsDialog({ onStationSelect }: FindGasStatio
         <DialogHeader>
           <DialogTitle>Buscar Gasolineras Cercanas</DialogTitle>
           <DialogDescription>
-            Encuentra gasolineras cerca de tu ubicación actual.
+            Selecciona una gasolinera para añadirla al registro, o haz clic en el icono de ruta para obtener direcciones.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4 min-h-[200px]">
@@ -154,14 +160,25 @@ export default function FindGasStationsDialog({ onStationSelect }: FindGasStatio
                     {stations.length > 0 ? stations.map((station) => (
                         <div
                             key={station.id}
-                            className="flex justify-between items-center p-3 rounded-md border hover:bg-accent cursor-pointer"
+                            className="flex items-center p-3 rounded-md border hover:bg-accent cursor-pointer group"
                             onClick={() => handleSelect(station.name)}
                         >
-                            <div>
+                            <div className="flex-1">
                                 <p className="font-semibold">{station.name}</p>
                                 <p className="text-sm text-muted-foreground">{station.address}</p>
                             </div>
-                            <span className="text-sm font-medium text-primary">{station.distance}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-primary">{station.distance}</span>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={(e) => handleGetDirections(e, station)}
+                                    title="Cómo llegar"
+                                >
+                                    <Route className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                                </Button>
+                            </div>
                         </div>
                     )) : <p className="text-sm text-muted-foreground text-center py-4">No se encontraron resultados.</p>}
                 </div>
