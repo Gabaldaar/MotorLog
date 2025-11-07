@@ -39,7 +39,7 @@ export default function FindNearbyGasStationsDialog({ children, onStationSelect 
     const radiusMeters = parseInt(radiusKm, 10) * 1000;
 
     if (isNaN(radiusMeters) || radiusMeters <= 0 || radiusMeters > 50000) {
-      setError("Por favor, ingresa un radio válido entre 0 y 50 km.");
+      setError("Por favor, ingresa un radio válido entre 1 y 50 km.");
       setIsLoading(false);
       return;
     }
@@ -130,7 +130,9 @@ export default function FindNearbyGasStationsDialog({ children, onStationSelect 
                         <ToggleGroupItem value="25">25 km</ToggleGroupItem>
                     </ToggleGroup>
                     <Input 
-                        type="number" 
+                        type="number"
+                        min="1"
+                        max="50"
                         value={radiusKm}
                         onChange={(e) => setRadiusKm(e.target.value)}
                         className="w-20"
