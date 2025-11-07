@@ -49,7 +49,7 @@ const getNearbyGasStationsTool = ai.defineTool(
     }
 
     const radius = 5000; // 5km radius
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=gas_station&key=${apiKey}&timestamp=${new Date().getTime()}`;
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=gas_station&key=${apiKey}`;
 
     try {
       const response = await fetch(url);
