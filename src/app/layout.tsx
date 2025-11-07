@@ -7,8 +7,12 @@ export const metadata: Metadata = {
   title: 'MotorLog',
   description: 'Intelligent fuel and vehicle management',
   icons: {
-    icon: '/favicon.png?v=2',
-    apple: '/apple-icon.png',
+    icon: [
+      { url: '/favicon.png?v=3' },
+      { url: '/favicon.png?v=3', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon.png?v=3', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: [{ url: '/favicon.png?v=3' }],
   },
 };
 
