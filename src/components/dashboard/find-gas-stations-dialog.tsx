@@ -87,7 +87,7 @@ export default function FindGasStationsDialog({ onStationSelect }: FindGasStatio
     setOpen(false);
     toast({
         title: 'Gasolinera Seleccionada',
-        description: `${name} ha sido añadida al registro.`,
+        description: `${name} ha sido añadida al campo de gasolinera.`,
     })
   };
 
