@@ -74,7 +74,7 @@ function NotificationManager() {
   }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays]);
 
   useEffect(() => {
-    if (notificationPermission !== 'granted' || processedReminders.length === 0) {
+    if (notificationPermission !== 'granted' || processedReminders.length === 0 || !vehicle) {
       return;
     }
 
@@ -118,7 +118,7 @@ function NotificationManager() {
 
     checkAndNotify();
 
-  }, [processedReminders, notificationPermission, vehicle]);
+  }, [processedReminders, notificationPermission, vehicle, urgencyThresholdDays, urgencyThresholdKm]);
 
   if (notificationPermission === 'default' && showPermissionCard) {
     return (
