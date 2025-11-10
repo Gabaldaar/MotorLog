@@ -27,7 +27,6 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
 
   const vehiclesQuery = useMemoFirebase(() => {
     if (!user) return null;
-    // Query the top-level 'vehicles' collection
     return query(collection(firestore, 'vehicles'), orderBy('make'));
   }, [firestore, user]);
 
@@ -54,11 +53,13 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
     if (lastSelectedVehicleId) {
         const lastSelected = vehicles.find(v => v.id === lastSelectedVehicleId);
         if (lastSelected) {
-            setSelectedVehicle(lastSelected);
-            // Update URL silently
-            const params = new URLSearchParams(searchParams.toString());
-            params.set('vehicle', lastSelected.id);
-            router.replace(`${pathname}?${params.toString()}`);
+            if (selectedVehicle?.id !== lastSelected.id) {
+              setSelectedVehicle(lastSelected);
+              // Update URL silently
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('vehicle', lastSelected.id);
+              router.replace(`${pathname}?${params.toString()}`);
+            }
             return;
         }
     }
@@ -66,21 +67,25 @@ export const VehicleProvider = ({ children }: { children: ReactNode }) => {
     // 3. Fallback: First vehicle in the list
     if (vehicles.length > 0) {
       const vehicleToSelect = vehicles[0];
-      setSelectedVehicle(vehicleToSelect);
-      // Update URL silently
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('vehicle', vehicleToSelect.id);
-      router.replace(`${pathname}?${params.toString()}`);
+      if (selectedVehicle?.id !== vehicleToSelect.id) {
+        setSelectedVehicle(vehicleToSelect);
+        // Update URL silently
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('vehicle', vehicleToSelect.id);
+        router.replace(`${pathname}?${params.toString()}`);
+      }
     } else {
       // 4. No vehicles available
-      setSelectedVehicle(null);
-      const params = new URLSearchParams(searchParams.toString());
-      if (params.has('vehicle')) {
-          params.delete('vehicle');
-          router.replace(`${pathname}?${params.toString()}`);
+      if (selectedVehicle !== null) {
+        setSelectedVehicle(null);
+        const params = new URLSearchParams(searchParams.toString());
+        if (params.has('vehicle')) {
+            params.delete('vehicle');
+            router.replace(`${pathname}?${params.toString()}`);
+        }
       }
     }
-  }, [searchParams, vehicles, pathname, router, isLoading]);
+  }, [searchParams, vehicles, pathname, router, isLoading, selectedVehicle]);
 
   const selectVehicle = (vehicleId: string) => {
     const vehicle = vehicles?.find(v => v.id === vehicleId);

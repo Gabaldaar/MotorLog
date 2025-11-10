@@ -17,6 +17,11 @@ import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays } from 'date-fns';
 import UrgentServicesAlert from '@/components/dashboard/urgent-services-alert';
 import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import AddVehicleDialog from '@/components/dashboard/add-vehicle-dialog';
+
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
   // Sort logs by odometer ascending to calculate consumption correctly
@@ -48,7 +53,7 @@ function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
 }
 
 export default function DashboardPage() {
-  const { selectedVehicle: vehicle } = useVehicles();
+  const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
   const { consumptionUnit, getFormattedConsumption, urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
@@ -73,14 +78,18 @@ export default function DashboardPage() {
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
   
   const vehicleFuelLogs = useMemo(() => processFuelLogs(allFuelLogsData || []), [allFuelLogsData]);
-  const lastOdometer = useMemo(() => vehicleFuelLogs?.[0]?.odometer || 0, [vehicleFuelLogs]);
-
+  
   const avgConsumption = useMemo(() => {
+    if (!vehicleFuelLogs || vehicleFuelLogs.length === 0) {
+      return vehicle?.averageConsumptionKmPerLiter || 0;
+    }
     const consumptionLogs = vehicleFuelLogs.filter(log => log.consumption && log.consumption > 0);
     return consumptionLogs.length > 0 
       ? consumptionLogs.reduce((acc, log) => acc + (log.consumption || 0), 0) / consumptionLogs.length
       : vehicle?.averageConsumptionKmPerLiter || 0;
   }, [vehicleFuelLogs, vehicle?.averageConsumptionKmPerLiter]);
+
+  const lastOdometer = useMemo(() => vehicleFuelLogs?.[0]?.odometer || 0, [vehicleFuelLogs]);
   
   const vehicleWithAvgConsumption = useMemo(() => {
     if (!vehicle) return null;
@@ -168,18 +177,37 @@ export default function DashboardPage() {
   }, [sortedPendingReminders]);
 
 
-  if (isLoadingLogs || isLoadingReminders || !vehicle || !vehicleWithAvgConsumption) {
+  if (isVehicleLoading || !vehicleWithAvgConsumption) {
     return (
-        <div className="flex justify-center items-center h-64">
+        <div className="flex justify-center items-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
   }
+  
+  if (!vehicle) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>¡Bienvenido a MotorLog!</CardTitle>
+          <CardDescription>Parece que todavía no has añadido ningún vehículo.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AddVehicleDialog>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Añadir tu primer vehículo
+            </Button>
+          </AddVehicleDialog>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6">
-      <UrgentServicesAlert reminders={urgentOrOverdueReminders} />
       <WelcomeBanner vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogsData || []} lastOdometer={lastOdometer} />
+      <UrgentServicesAlert reminders={urgentOrOverdueReminders} />
       
       <EstimatedRefuelCard vehicle={vehicleWithAvgConsumption} allFuelLogs={allFuelLogsData || []} />
 

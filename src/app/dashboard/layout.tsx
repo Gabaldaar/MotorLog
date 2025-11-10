@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { FirebaseClientProvider } from '@/firebase';
 import { PreferencesProvider } from '@/context/preferences-context';
+import { Loader2 } from 'lucide-react';
 
 function DashboardLayoutContent({
   children,
@@ -26,8 +27,11 @@ function DashboardLayoutContent({
 
   if (isUserLoading || !user) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        Loading...
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground">Cargando...</p>
+        </div>
       </div>
     );
   }
