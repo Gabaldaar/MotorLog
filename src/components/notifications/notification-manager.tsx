@@ -10,21 +10,23 @@ import { differenceInDays } from 'date-fns';
 import { Button } from '../ui/button';
 import { BellRing } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import dynamic from 'next/dynamic';
 
 const NOTIFICATION_COOLDOWN_HOURS = 24;
 
 interface NotificationUIProps {
   reminders: ProcessedServiceReminder[];
   vehicle: Vehicle;
-  urgencyThresholdDays: number;
-  urgencyThresholdKm: number;
 }
 
-function NotificationUI({ reminders, vehicle, urgencyThresholdDays, urgencyThresholdKm }: NotificationUIProps) {
+function NotificationUI({ reminders, vehicle }: NotificationUIProps) {
   const [notificationPermission, setNotificationPermission] = useState('default');
   const [showPermissionCard, setShowPermissionCard] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    // Este efecto se ejecuta solo en el cliente, después del montaje.
+    setIsMounted(true);
     setNotificationPermission(Notification.permission);
     if (Notification.permission === 'default') {
       setShowPermissionCard(true);
@@ -39,47 +41,60 @@ function NotificationUI({ reminders, vehicle, urgencyThresholdDays, urgencyThres
   };
 
   useEffect(() => {
-    if (notificationPermission !== 'granted' || reminders.length === 0) {
+    // No ejecutar esta lógica hasta que el componente esté montado y los permisos concedidos.
+    if (!isMounted || notificationPermission !== 'granted' || reminders.length === 0 || !vehicle) {
       return;
     }
 
-    const now = new Date().getTime();
-    const notifiedReminders = JSON.parse(localStorage.getItem('notifiedReminders') || '{}');
+    try {
+      const now = new Date().getTime();
+      const notifiedReminders = JSON.parse(localStorage.getItem('notifiedReminders') || '{}');
 
-    reminders.forEach(reminder => {
-      if (reminder.isUrgent || reminder.isOverdue) {
-        const lastNotificationTime = notifiedReminders[reminder.id];
-        const shouldNotify = !lastNotificationTime || now - lastNotificationTime > NOTIFICATION_COOLDOWN_HOURS * 60 * 60 * 1000;
+      reminders.forEach(reminder => {
+        if (reminder.isUrgent || reminder.isOverdue) {
+          const lastNotificationTime = notifiedReminders[reminder.id];
+          const shouldNotify = !lastNotificationTime || now - lastNotificationTime > NOTIFICATION_COOLDOWN_HOURS * 60 * 60 * 1000;
 
-        if (shouldNotify) {
-          const title = reminder.isOverdue ? 'Servicio Vencido' : 'Servicio Urgente';
-          let body = `${reminder.serviceType} para tu ${vehicle.make} ${vehicle.model}.`;
-          
-          if (reminder.daysRemaining !== null && reminder.daysRemaining < 0) {
-            body += ` Vencido hace ${Math.abs(reminder.daysRemaining)} días.`;
-          } else if (reminder.kmsRemaining !== null && reminder.kmsRemaining < 0) {
-            body += ` Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km.`;
-          } else if (reminder.daysRemaining !== null && reminder.daysRemaining <= urgencyThresholdDays) {
-            body += ` Faltan ${reminder.daysRemaining} días.`;
-          } else if (reminder.kmsRemaining !== null && reminder.kmsRemaining <= urgencyThresholdKm) {
-            body += ` Faltan ${reminder.kmsRemaining.toLocaleString()} km.`;
+          if (shouldNotify) {
+            const title = reminder.isOverdue ? 'Servicio Vencido' : 'Servicio Urgente';
+            let body = `${reminder.serviceType} para tu ${vehicle.make} ${vehicle.model}.`;
+            
+            if (reminder.daysRemaining !== null && reminder.daysRemaining < 0) {
+              body += ` Vencido hace ${Math.abs(reminder.daysRemaining)} días.`;
+            } else if (reminder.kmsRemaining !== null && reminder.kmsRemaining < 0) {
+              body += ` Vencido hace ${Math.abs(reminder.kmsRemaining).toLocaleString()} km.`;
+            } else if (reminder.daysRemaining !== null) {
+              body += ` Faltan ${reminder.daysRemaining} días.`;
+            } else if (reminder.kmsRemaining !== null) {
+              body += ` Faltan ${reminder.kmsRemaining.toLocaleString()} km.`;
+            }
+
+            const notification = new Notification(title, {
+              body,
+              icon: '/icon-192x192.png',
+              badge: '/icon-192x192.png',
+              tag: reminder.id,
+            });
+
+            notifiedReminders[reminder.id] = now;
           }
-
-          const notification = new Notification(title, {
-            body,
-            icon: '/icon-192x192.png',
-            badge: '/icon-192x192.png',
-            tag: reminder.id,
-          });
-
-          notifiedReminders[reminder.id] = now;
         }
-      }
-    });
+      });
 
-    localStorage.setItem('notifiedReminders', JSON.stringify(notifiedReminders));
+      localStorage.setItem('notifiedReminders', JSON.stringify(notifiedReminders));
+    } catch (error) {
+        console.error("===== ERROR EN NOTIFICACIONES =====");
+        console.error("Se produjo un error al intentar mostrar una notificación.");
+        console.error("Error:", error);
+        console.error("Datos en el momento del error:", { reminders, vehicle });
+        console.error("===================================");
+    }
 
-  }, [reminders, vehicle, notificationPermission, urgencyThresholdDays, urgencyThresholdKm]);
+  }, [reminders, vehicle, notificationPermission, isMounted]);
+
+  if (!isMounted) {
+    return null; // No renderizar nada hasta que estemos seguros de que es el cliente.
+  }
 
   if (notificationPermission === 'default' && showPermissionCard) {
     return (
@@ -100,8 +115,7 @@ function NotificationUI({ reminders, vehicle, urgencyThresholdDays, urgencyThres
   return null;
 }
 
-
-export default function NotificationManager() {
+function NotificationManager() {
   const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -127,7 +141,7 @@ export default function NotificationManager() {
   const lastOdometer = useMemo(() => lastFuelLogData?.[0]?.odometer || 0, [lastFuelLogData]);
 
   const processedReminders = useMemo((): ProcessedServiceReminder[] => {
-    const dataIsReady = !isVehicleLoading && !isLoadingReminders && lastOdometer > 0;
+    const dataIsReady = !isVehicleLoading && !isLoadingReminders && !!lastOdometer;
     if (!dataIsReady || !serviceReminders) return [];
     
     return serviceReminders
@@ -144,11 +158,21 @@ export default function NotificationManager() {
       });
   }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, isVehicleLoading, isLoadingReminders]);
 
-  const dataIsReadyForUI = !isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && vehicle && processedReminders.length > 0;
+  const dataIsReadyForUI = !isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && vehicle;
 
   if (!dataIsReadyForUI) {
     return null;
   }
 
-  return <NotificationUI reminders={processedReminders} vehicle={vehicle} urgencyThresholdDays={urgencyThresholdDays} urgencyThresholdKm={urgencyThresholdKm} />;
+  const urgentReminders = processedReminders.filter(r => r.isOverdue || r.isUrgent);
+  
+  return <NotificationUI reminders={urgentReminders} vehicle={vehicle} />;
 }
+
+
+// Hacemos la exportación dinámica para asegurar que solo se renderice en el cliente
+const ClientOnlyNotificationManager = dynamic(() => Promise.resolve(NotificationManager), {
+  ssr: false,
+});
+
+export default ClientOnlyNotificationManager;
