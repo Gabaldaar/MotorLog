@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   description: 'Intelligent fuel and vehicle management',
   manifest: '/manifest.json',
   icons: {
-    icon: '/icon.ico',
-    apple: '/favicon.png',
+    icon: '/favicon.png',
+    apple: '/icon-192x192.png',
   },
 };
 
