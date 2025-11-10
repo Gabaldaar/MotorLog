@@ -1,0 +1,21 @@
+{
+  "name": "MotorLog",
+  "short_name": "MotorLog",
+  "description": "Intelligent fuel and vehicle management",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#F0FAF0",
+  "theme_color": "#228B22",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
