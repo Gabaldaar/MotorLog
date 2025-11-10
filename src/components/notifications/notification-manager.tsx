@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 
 const NOTIFICATION_COOLDOWN_HOURS = 24;
 
-export default function NotificationManager() {
+function NotificationManager() {
   const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -137,4 +137,18 @@ export default function NotificationManager() {
   }
 
   return null; // This component does not render anything in the DOM itself
+}
+
+export default function ClientOnlyNotificationManager() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return null;
+  }
+
+  return <NotificationManager />;
 }

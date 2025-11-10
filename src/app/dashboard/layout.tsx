@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 import { FirebaseClientProvider } from '@/firebase';
 import { PreferencesProvider } from '@/context/preferences-context';
 import { Loader2 } from 'lucide-react';
-import NotificationManager from '@/components/notifications/notification-manager';
+import ClientOnlyNotificationManager from '@/components/notifications/notification-manager';
 
 function DashboardLayoutContent({
   children,
@@ -41,7 +41,7 @@ function DashboardLayoutContent({
     <VehicleProvider>
       <PreferencesProvider>
         <SidebarProvider>
-        <NotificationManager />
+        <ClientOnlyNotificationManager />
         <div className="relative flex h-screen w-full flex-col overflow-hidden">
             <Sidebar>
             <AppSidebar />
