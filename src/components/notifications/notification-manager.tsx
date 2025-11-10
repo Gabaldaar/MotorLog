@@ -12,7 +12,7 @@ import { BellRing } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import dynamic from 'next/dynamic';
 
-const NOTIFICATION_COOLDOWN_HOURS = 24;
+const NOTIFICATION_COOLDOWN_HOURS = 48;
 
 interface NotificationUIProps {
   reminders: ProcessedServiceReminder[];
