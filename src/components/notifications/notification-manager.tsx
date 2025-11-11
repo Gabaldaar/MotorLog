@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -147,15 +148,17 @@ function NotificationManager() {
   const lastOdometer = useMemo(() => lastFuelLogData?.[0]?.odometer || 0, [lastFuelLogData]);
 
   useEffect(() => {
-      const isReady = !isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && vehicle && lastOdometer > 0;
-      if(isReady){
+      // This effect determines if all the necessary data is loaded and valid.
+      const isReady = !isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && !!vehicle && lastOdometer > 0;
+      if (isReady && !dataIsReadyForUI) {
         setDataIsReadyForUI(true);
       }
-  }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle, lastOdometer]);
+  }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle, lastOdometer, dataIsReadyForUI]);
 
 
   const processedReminders = useMemo((): ProcessedServiceReminder[] => {
-    if (!dataIsReadyForUI || !serviceReminders) return [];
+    // Guard clause: do not process until all data is ready.
+    if (!dataIsReadyForUI || !serviceReminders || !lastOdometer) return [];
     
     return serviceReminders
       .filter(r => !r.isCompleted)
@@ -171,6 +174,7 @@ function NotificationManager() {
       });
   }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, dataIsReadyForUI]);
 
+  // Only render the UI component when data is fully ready.
   if (!dataIsReadyForUI) {
     return null;
   }
