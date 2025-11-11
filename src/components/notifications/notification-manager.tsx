@@ -166,7 +166,8 @@ function NotificationManager() {
       const isReady = !isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && !!vehicle && lastOdometer > 0;
       if (isReady && !dataIsReadyForUI) {
         setDataIsReadyForUI(true);
-      } else if (!isReady) {
+      } else if (!isReady && dataIsReadyForUI) {
+        // Reset if data becomes not ready (e.g. vehicle change)
         setDataIsReadyForUI(false);
       }
   }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle, lastOdometer, dataIsReadyForUI]);

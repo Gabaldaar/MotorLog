@@ -11,6 +11,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { BellRing } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
 
 export default function PreferencesSettings() {
   const { 
@@ -22,6 +23,16 @@ export default function PreferencesSettings() {
     setUrgencyThresholdKm,
   } = usePreferences();
   const { toast } = useToast();
+  const [dataIsReady, setDataIsReady] = useState(false);
+  const [remindersCount, setRemindersCount] = useState(0);
+  const [permissionState, setPermissionState] = useState('default');
+
+  useEffect(() => {
+    // This effect runs only on the client, ensuring window.Notification is available
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setPermissionState(Notification.permission);
+    }
+  }, []);
 
   const handleResetNotifications = () => {
     try {
@@ -39,6 +50,45 @@ export default function PreferencesSettings() {
         console.error("Error resetting notification state:", error);
     }
   }
+
+  const doForceTestNotification = async () => {
+    if (typeof window === 'undefined' || !('Notification' in window) || !('serviceWorker' in navigator)) {
+        alert("Este navegador no soporta notificaciones.");
+        return;
+    }
+
+    let currentPermission = Notification.permission;
+    
+    if (currentPermission === 'denied') {
+        alert("El permiso de notificaciones está denegado. Debes cambiarlo en la configuración de tu navegador.");
+        return;
+    }
+
+    if (currentPermission === 'default') {
+        currentPermission = await Notification.requestPermission();
+    }
+    
+    setPermissionState(currentPermission); // Update UI state
+
+    if (currentPermission === 'granted') {
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.showNotification('Notificación de Prueba', {
+                body: 'Si ves esto, ¡las notificaciones funcionan!',
+                icon: '/icon-192x192.png',
+                badge: '/icon-192x192.png',
+            });
+        } catch (err: any) {
+            console.error("Error al mostrar notificación de prueba:", err);
+            alert(`Error al intentar mostrar la notificación: ${err.message}`);
+        }
+    }
+  };
+
+  const handleForceTestNotification = () => {
+    // This wrapper ensures the button click is always responsive
+    doForceTestNotification();
+  };
 
   return (
     <Card className="mt-4">
@@ -121,12 +171,23 @@ export default function PreferencesSettings() {
            <div>
             <Label className="text-base">Gestión de Notificaciones</Label>
             <p className="text-sm text-muted-foreground mb-4">
-              Si no estás recibiendo alertas para servicios existentes, puedes forzar un reinicio.
+              Usa estas herramientas para diagnosticar y gestionar las alertas.
             </p>
-            <Button variant="outline" onClick={handleResetNotifications}>
-                <BellRing className="mr-2 h-4 w-4" />
-                Reiniciar notificaciones
-            </Button>
+            <div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+               <div className='text-sm'>
+                  <span className='font-semibold'>Permiso del Navegador:</span> <span className={`font-mono p-1 rounded text-xs ${permissionState === 'granted' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{permissionState}</span>
+               </div>
+               <div className='flex flex-col sm:flex-row gap-2'>
+                <Button variant="outline" onClick={handleForceTestNotification}>
+                    <BellRing className="mr-2 h-4 w-4" />
+                    Forzar Notificación de Prueba
+                </Button>
+                <Button variant="outline" onClick={handleResetNotifications}>
+                    <BellRing className="mr-2 h-4 w-4" />
+                    Reiniciar notificaciones
+                </Button>
+               </div>
+            </div>
           </div>
         </div>
       </CardContent>
