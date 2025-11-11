@@ -5,9 +5,16 @@ import { usePreferences } from '@/context/preferences-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import type { ConsumptionUnit } from '@/lib/types';
+import type { ConsumptionUnit, ProcessedServiceReminder } from '@/lib/types';
 import { Separator } from '../ui/separator';
 import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { useEffect, useMemo, useState } from 'react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useVehicles } from '@/context/vehicle-context';
+import { collection, query, limit, orderBy } from 'firebase/firestore';
+import { differenceInDays } from 'date-fns';
+
 
 export default function PreferencesSettings() {
   const { 
@@ -18,6 +25,94 @@ export default function PreferencesSettings() {
     urgencyThresholdKm,
     setUrgencyThresholdKm,
   } = usePreferences();
+  
+  const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
+  const { user } = useUser();
+  const firestore = useFirestore();
+
+  const [notificationPermission, setNotificationPermission] = useState('default');
+  const [dataIsReady, setDataIsReady] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const lastFuelLogQuery = useMemoFirebase(() => {
+    if (!user || !vehicle) return null;
+    return query(
+      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
+      orderBy('odometer', 'desc'),
+      limit(1)
+    );
+  }, [firestore, user, vehicle]);
+
+  const remindersQuery = useMemoFirebase(() => {
+    if (!user || !vehicle) return null;
+    return query(collection(firestore, 'vehicles', vehicle.id, 'service_reminders'));
+  }, [firestore, user, vehicle]);
+
+  const { data: lastFuelLogData, isLoading: isLoadingLastLog } = useCollection(lastFuelLogQuery);
+  const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection(remindersQuery);
+  
+  const lastOdometer = useMemo(() => lastFuelLogData?.[0]?.odometer || 0, [lastFuelLogData]);
+
+  useEffect(() => {
+      setDataIsReady(!isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && !!vehicle);
+  }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle]);
+
+  const urgentRemindersCount = useMemo(() => {
+    if (!dataIsReady || !serviceReminders || lastOdometer <= 0) return 0;
+    
+    return serviceReminders
+      .filter(r => !r.isCompleted)
+      .filter(r => {
+        const kmsRemaining = r.dueOdometer ? r.dueOdometer - lastOdometer : null;
+        const daysRemaining = r.dueDate ? differenceInDays(new Date(r.dueDate), new Date()) : null;
+        const isOverdue = (kmsRemaining !== null && kmsRemaining < 0) || (daysRemaining !== null && daysRemaining < 0);
+        const isUrgent = !isOverdue && (
+          (kmsRemaining !== null && kmsRemaining <= urgencyThresholdKm) ||
+          (daysRemaining !== null && daysRemaining <= urgencyThresholdDays)
+        );
+        return isOverdue || isUrgent;
+      }).length;
+  }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, dataIsReady]);
+
+  const handleForceTestNotification = async () => {
+    console.log('Paso 1: Botón pulsado');
+    try {
+      console.log('Paso 2: Solicitando permiso...');
+      const permission = await Notification.requestPermission();
+      console.log(`Paso 3: Permiso obtenido: ${permission}`);
+      setNotificationPermission(permission);
+
+      if (permission === 'granted') {
+        console.log('Paso 4: Esperando Service Worker...');
+        const registration = await navigator.serviceWorker.ready;
+        console.log('Paso 5: Service Worker listo.', registration);
+        
+        console.log('Paso 6: Mostrando notificación...');
+        await registration.showNotification('Notificación de Prueba', {
+          body: 'Si ves esto, ¡las notificaciones funcionan!',
+          icon: '/icon-192x192.png',
+        });
+        console.log('Paso 7: Notificación mostrada (o falló en segundo plano).');
+        alert('Se ha enviado la orden para mostrar la notificación. Si no aparece, revisa los permisos de notificación de tu sistema operativo o la consola del navegador en un PC.');
+
+      } else {
+        alert('El permiso para mostrar notificaciones fue denegado.');
+      }
+    } catch (error: any) {
+      console.error('Error al intentar mostrar la notificación:', error);
+      alert(`Error al intentar mostrar la notificación: ${error.message}`);
+    }
+  };
+
+  const resetNotificationPermissions = () => {
+      alert("Para reiniciar los permisos, debes hacerlo manualmente en la configuración de tu navegador para este sitio web. Busca el icono de candado en la barra de direcciones.");
+  }
+
 
   return (
     <Card className="mt-4">
@@ -94,6 +189,26 @@ export default function PreferencesSettings() {
                 </div>
             </div>
           </div>
+          
+          <Separator />
+          
+           <div>
+            <Label className="text-base">Diagnóstico de Notificaciones</Label>
+             <div className="text-sm space-y-1 mt-2 p-3 border rounded-md bg-muted/50">
+                <p><strong>Estado de los datos:</strong> {dataIsReady ? 'listos' : 'cargando...'}</p>
+                <p><strong>Permiso del Navegador:</strong> {notificationPermission}</p>
+                <p><strong>Recordatorios Urgentes/Vencidos Encontrados:</strong> {urgentRemindersCount}</p>
+            </div>
+            <div className="flex gap-2 mt-4">
+                <Button onClick={handleForceTestNotification} variant="outline">
+                    Forzar Notificación de Prueba
+                </Button>
+                 <Button onClick={resetNotificationPermissions} variant="destructive">
+                    Reiniciar Permisos
+                </Button>
+            </div>
+          </div>
+
         </div>
       </CardContent>
     </Card>

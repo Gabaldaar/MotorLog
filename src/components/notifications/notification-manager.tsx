@@ -15,6 +15,24 @@ import dynamic from 'next/dynamic';
 
 const NOTIFICATION_COOLDOWN_HOURS = 48;
 
+// Function to be called from the test button
+export const showNotification = async (title: string, options: NotificationOptions) => {
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification(title, options);
+  } catch (e) {
+    console.error('Error showing notification via ServiceWorker:', e);
+    // Fallback for environments where SW might fail but `new Notification` is allowed
+    try {
+      new Notification(title, options);
+    } catch (e2) {
+      console.error('Error showing notification via constructor:', e2);
+      throw e2; // Re-throw the error to be caught by the caller
+    }
+  }
+};
+
+
 interface NotificationUIProps {
   reminders: ProcessedServiceReminder[];
   vehicle: Vehicle;
@@ -50,16 +68,43 @@ function NotificationUI({ reminders, vehicle }: NotificationUIProps) {
     }
     
     const sendNotifications = async () => {
-      // Logic for sending notifications would go here.
-      // Currently disabled due to unresolved issues.
+      const now = new Date().getTime();
+
+      for (const reminder of reminders) {
+        const lastNotifiedString = localStorage.getItem(`notified_${reminder.id}`);
+        if (lastNotifiedString) {
+          const lastNotifiedTime = new Date(lastNotifiedString).getTime();
+          if ((now - lastNotifiedTime) < NOTIFICATION_COOLDOWN_HOURS * 60 * 60 * 1000) {
+            continue; // Skip if notified recently
+          }
+        }
+
+        let body = `El servicio para tu ${vehicle.make} ${vehicle.model} requiere atención.`;
+        if (reminder.isOverdue) {
+          body = `¡Servicio Vencido! ${body}`;
+        } else if (reminder.isUrgent) {
+          body = `¡Servicio Urgente! ${body}`;
+        }
+
+        try {
+            await showNotification(`Recordatorio: ${reminder.serviceType}`, {
+                body: body,
+                icon: '/icon-192x192.png',
+                badge: '/badge-72x72.png',
+                tag: reminder.id,
+            });
+            localStorage.setItem(`notified_${reminder.id}`, new Date().toISOString());
+        } catch (error) {
+            console.error(`[Notificaciones] Fallo al enviar notificación para ${reminder.id}:`, error);
+        }
+      }
     };
     
     const timer = setTimeout(() => {
-        // sendNotifications();
+       sendNotifications();
     }, 5000); 
 
     return () => clearTimeout(timer);
-
 
   }, [reminders, vehicle, notificationPermission, isMounted]);
 
