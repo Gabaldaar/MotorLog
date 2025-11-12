@@ -31,13 +31,11 @@ export default function PreferencesSettings() {
     setNotificationCooldownHours,
   } = usePreferences();
   
-  const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
+  const { selectedVehicle: vehicle } = useVehicles();
   const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
 
   const [notificationPermission, setNotificationPermission] = useState('default');
-  const [dataIsReady, setDataIsReady] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
@@ -46,65 +44,34 @@ export default function PreferencesSettings() {
     }
   }, []);
 
-  const lastFuelLogQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(
-      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
-      orderBy('odometer', 'desc'),
-      limit(1)
-    );
-  }, [firestore, user, vehicle]);
-
-  const remindersQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(collection(firestore, 'vehicles', vehicle.id, 'service_reminders'));
-  }, [firestore, user, vehicle]);
-
-  const { data: lastFuelLogData, isLoading: isLoadingLastLog } = useCollection(lastFuelLogQuery);
-  const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
-  
-  const lastOdometer = useMemo(() => lastFuelLogData?.[0]?.odometer || 0, [lastFuelLogData]);
-
-  useEffect(() => {
-      setDataIsReady(!isVehicleLoading && !isLoadingLastLog && !isLoadingReminders && !!vehicle);
-  }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle]);
-
-  const urgentReminders: ProcessedServiceReminder[] = useMemo(() => {
-    if (!dataIsReady || !serviceReminders || !lastOdometer) return [];
-    
-    return serviceReminders
-      .filter(r => !r.isCompleted)
-      .map(r => {
-        const kmsRemaining = r.dueOdometer ? r.dueOdometer - lastOdometer : null;
-        const daysRemaining = r.dueDate ? differenceInDays(new Date(r.dueDate), new Date()) : null;
-        const isOverdue = (kmsRemaining !== null && kmsRemaining < 0) || (daysRemaining !== null && daysRemaining < 0);
-        const isUrgent = !isOverdue && (
-          (kmsRemaining !== null && kmsRemaining <= urgencyThresholdKm) ||
-          (daysRemaining !== null && daysRemaining <= urgencyThresholdDays)
-        );
-        return { ...r, kmsRemaining, daysRemaining, isOverdue, isUrgent };
-      })
-      .filter(r => r.isOverdue || r.isUrgent);
-  }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, dataIsReady]);
-
   const handleForceTestNotification = async () => {
-    if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para enviar notificaciones.'});
+    if (!('serviceWorker' in navigator)) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Service Workers no son soportados en este navegador.' });
         return;
     }
     
     setIsSending(true);
+
     try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            toast({ variant: 'destructive', title: 'No Suscrito', description: 'No estás suscrito a notificaciones. Por favor, activa las notificaciones primero.' });
+            setIsSending(false);
+            return;
+        }
+
         const payload = {
             title: 'Notificación de Prueba',
-            body: 'Este es el cuerpo del mensaje de prueba.',
+            body: '¡Esto es una notificación enviada desde tu PWA!',
             icon: vehicle?.imageUrl || '/icon-192x192.png'
         };
 
         const res = await fetch('/api/send-push', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.uid, payload }),
+            body: JSON.stringify({ subscription, payload }),
         });
         
         if (!res.ok) {
@@ -114,18 +81,11 @@ export default function PreferencesSettings() {
 
         const result = await res.json();
         
-        if (result.sent > 0) {
+        if (result.success) {
             toast({ 
-                title: '¡Éxito!', 
-                description: `Se envió una solicitud para ${result.sent} notificación(es).`
+                title: '¡Solicitud Enviada!', 
+                description: 'La notificación de prueba debería llegar en breve.'
             });
-        } else if (result.expired > 0) {
-             toast({ 
-                title: 'Suscripciones Expiradas', 
-                description: `Se encontraron y eliminaron ${result.expired} suscripciones inactivas. Intenta de nuevo.`
-            });
-        } else {
-             toast({ title: 'Nada que enviar', description: 'No se encontraron suscripciones activas para enviar notificaciones.'});
         }
     } catch (error: any) {
         console.error('Error al forzar notificación:', error);
@@ -241,16 +201,19 @@ export default function PreferencesSettings() {
            <div>
             <Label className="text-base">Diagnóstico de Notificaciones</Label>
              <div className="text-sm space-y-1 mt-2 p-3 border rounded-md bg-muted/50">
-                <p><strong>Estado de los datos:</strong> {dataIsReady ? 'listos' : 'cargando...'}</p>
                 <p><strong>Permiso del Navegador:</strong> {notificationPermission}</p>
-                <p><strong>Recordatorios Urgentes/Vencidos Encontrados:</strong> {urgentReminders.length}</p>
             </div>
             <div className="flex gap-2 mt-4">
-                <Button onClick={handleForceTestNotification} variant="outline" disabled={isSending}>
+                <Button onClick={handleForceTestNotification} variant="outline" disabled={isSending || notificationPermission !== 'granted'}>
                     {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Enviar Notificación de Prueba
                 </Button>
             </div>
+             {notificationPermission !== 'granted' && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Debes activar las notificaciones para poder enviar una prueba.
+                </p>
+              )}
           </div>
 
         </div>
@@ -258,5 +221,3 @@ export default function PreferencesSettings() {
     </Card>
   );
 }
-
-    
