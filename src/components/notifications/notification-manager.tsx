@@ -15,6 +15,14 @@ import { useToast } from '@/hooks/use-toast';
 
 const NOTIFICATION_COOLDOWN_HOURS = 48;
 
+export async function showNotification(title: string, options: NotificationOptions) {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error("Service Worker not supported");
+  }
+  const registration = await navigator.serviceWorker.ready;
+  await registration.showNotification(title, options);
+}
+
 async function subscribeUserToPush(idToken: string) {
   if (!('serviceWorker' in navigator)) {
     throw new Error("Service Worker not supported");
@@ -133,6 +141,8 @@ function NotificationManager() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
+  // State to trigger re-evaluation
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -145,6 +155,13 @@ function NotificationManager() {
         }
       );
     }
+     // Set up a timer to periodically re-check for notifications
+    const interval = setInterval(() => {
+      console.log('[Notifier] Periodic check triggered.');
+      setTick(prev => prev + 1);
+    }, 15 * 60 * 1000); // Every 15 minutes
+
+    return () => clearInterval(interval);
   }, []);
 
   const lastFuelLogQuery = useMemoFirebase(() => {
@@ -183,7 +200,7 @@ function NotificationManager() {
         );
         return { ...r, kmsRemaining, daysRemaining, isOverdue, isUrgent };
       }).filter(r => r.isOverdue || r.isUrgent);
-  }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, isVehicleLoading, isLoadingLastLog, isLoadingReminders]);
+  }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, isVehicleLoading, isLoadingLastLog, isLoadingReminders, tick]); // Add tick to dependencies
 
   const handleActivation = useCallback(async () => {
     if (!user) throw new Error("Usuario no autenticado");
@@ -193,7 +210,7 @@ function NotificationManager() {
 
   // Effect to trigger notifications
   useEffect(() => {
-    if (!user || urgentReminders.length === 0) {
+    if (!user || urgentReminders.length === 0 || typeof window === 'undefined') {
       return;
     }
 
@@ -202,13 +219,21 @@ function NotificationManager() {
 
     const remindersToNotify = urgentReminders.filter(reminder => {
       const lastTime = lastNotificationTimes[reminder.id];
-      if (!lastTime) return true; // Never notified
+      if (!lastTime) {
+        console.log(`[Notifier] Reminder ${reminder.serviceType} has no last notification time. It's a candidate.`);
+        return true; // Never notified
+      }
       const hoursSinceLast = (now - lastTime) / (1000 * 60 * 60);
-      return hoursSinceLast > NOTIFICATION_COOLDOWN_HOURS;
+       if (hoursSinceLast > NOTIFICATION_COOLDOWN_HOURS) {
+        console.log(`[Notifier] Reminder ${reminder.serviceType} was last notified ${hoursSinceLast.toFixed(1)} hours ago. It's a candidate.`);
+        return true;
+      }
+      console.log(`[Notifier] Reminder ${reminder.serviceType} was notified recently. Skipping.`);
+      return false;
     });
 
     if (remindersToNotify.length > 0) {
-      console.log(`[Notifier] Found ${remindersToNotify.length} reminders to notify about.`);
+      console.log(`[Notifier] Found ${remindersToNotify.length} reminders to notify about.`, remindersToNotify.map(r => r.serviceType));
       const payload = {
         title: `Alerta de Mantenimiento para ${vehicle?.make} ${vehicle?.model}`,
         body: `Tienes ${remindersToNotify.length} servicio(s) que requieren tu atención.`,
@@ -219,16 +244,22 @@ function NotificationManager() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.uid, payload }),
-      }).then(() => {
-        // Update notification times on success
-        remindersToNotify.forEach(reminder => {
-          lastNotificationTimes[reminder.id] = now;
-        });
-        localStorage.setItem('lastNotificationTimes', JSON.stringify(lastNotificationTimes));
-        console.log('[Notifier] Notification request sent to backend.');
+      }).then((res) => {
+        if(res.ok) {
+            // Update notification times on success
+            remindersToNotify.forEach(reminder => {
+                lastNotificationTimes[reminder.id] = now;
+            });
+            localStorage.setItem('lastNotificationTimes', JSON.stringify(lastNotificationTimes));
+            console.log('[Notifier] Notification request sent to backend and localStorage updated.');
+        } else {
+            console.error('[Notifier] Backend failed to send notification.', res.statusText);
+        }
       }).catch(err => {
         console.error('[Notifier] Failed to send notification request:', err);
       });
+    } else {
+        console.log('[Notifier] No new reminders to notify about at this time.');
     }
 
   }, [urgentReminders, user, vehicle]);
