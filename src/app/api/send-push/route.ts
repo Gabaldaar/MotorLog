@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     if (subscriptionsSnapshot.empty) {
       console.log(`No push subscriptions found for user: ${userId}`);
-      return NextResponse.json({ success: true, message: 'No subscriptions found for user.' });
+      return NextResponse.json({ success: true, message: 'No subscriptions found for user.', sent: 0, expired: 0 });
     }
 
     const notificationPayload = JSON.stringify(payload);

@@ -92,20 +92,29 @@ export default function PreferencesSettings() {
         toast({ variant: 'destructive', title: 'Error', description: 'Selecciona un vehículo e inicia sesión.'});
         return;
     }
+    if (urgentReminders.length === 0) {
+        toast({ title: 'Nada que notificar', description: 'No se encontraron servicios urgentes o vencidos en este momento.'});
+        return;
+    }
 
     setIsSending(true);
     try {
-        const result = await sendUrgentRemindersNotification(user.uid, urgentReminders, vehicle, notificationCooldownHours, true); // ignoreCooldown = true
-        if (result.sent > 0) {
-            toast({ title: 'Notificaciones Enviadas', description: `Se envió una solicitud para ${result.sent} notificación(es).`});
-        } else if (result.skipped > 0 && urgentReminders.length > 0) {
-            toast({ title: 'No se enviaron notificaciones', description: 'Los recordatorios urgentes ya fueron notificados recientemente (cooldown activo), pero se forzó el envío de prueba.'});
+        const results = await sendUrgentRemindersNotification(user.uid, urgentReminders, vehicle, notificationCooldownHours, true); // ignoreCooldown = true
+        
+        const sentCount = results.reduce((acc, r) => acc + r.sent, 0);
+        const expiredCount = results.reduce((acc, r) => acc + r.expired, 0);
+
+        if (sentCount > 0 || expiredCount > 0) {
+            toast({ 
+                title: 'Respuesta del Servidor', 
+                description: `Enviados: ${sentCount}, Expirados/Eliminados: ${expiredCount}.`
+            });
         } else {
-             toast({ title: 'Nada que notificar', description: 'No se encontraron servicios urgentes o vencidos en este momento.'});
+             toast({ title: 'Nada para enviar', description: 'No se encontraron suscripciones activas o los recordatorios están en cooldown.'});
         }
     } catch (error: any) {
         console.error('Error al forzar notificación:', error);
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
+        toast({ variant: 'destructive', title: 'Error de Envío', description: error.message });
     } finally {
         setIsSending(false);
     }
