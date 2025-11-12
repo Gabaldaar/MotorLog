@@ -83,34 +83,35 @@ export async function sendUrgentRemindersNotification(
     });
 
     if (remindersToNotify.length > 0) {
-      console.log(`[Notifier] Found ${remindersToNotify.length} reminders to notify about.`, remindersToNotify.map(r => r.serviceType));
-      const payload = {
-        title: `Alerta de Mantenimiento para ${vehicle?.make} ${vehicle?.model}`,
-        body: `Tienes ${remindersToNotify.length} servicio(s) que requieren tu atención.`,
-        icon: vehicle?.imageUrl || '/icon-192x192.png'
-      };
+        console.log(`[Notifier] Found ${remindersToNotify.length} reminders to notify about.`, remindersToNotify.map(r => r.serviceType));
+        
+        for (const reminder of remindersToNotify) {
+            const payload = {
+                title: `${reminder.isOverdue ? 'Servicio Vencido' : 'Servicio Urgente'}: ${vehicle?.make}`,
+                body: `${reminder.serviceType}`,
+                icon: vehicle?.imageUrl || '/icon-192x192.png'
+            };
 
-      const res = await fetch('/api/send-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, payload }),
-      });
-
-      if(res.ok) {
-          // Only update timestamp if we are NOT ignoring cooldown
-          if (!ignoreCooldown) {
-            remindersToNotify.forEach(reminder => {
-                lastNotificationTimes[reminder.id] = now;
+            const res = await fetch('/api/send-push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, payload }),
             });
+
+            if (res.ok) {
+                sentCount++;
+                if (!ignoreCooldown) {
+                    lastNotificationTimes[reminder.id] = now;
+                }
+            } else {
+                 console.error(`[Notifier] Backend failed to send notification for ${reminder.serviceType}.`, res.statusText);
+            }
+        }
+        
+        if (!ignoreCooldown) {
             localStorage.setItem('lastNotificationTimes', JSON.stringify(lastNotificationTimes));
-            console.log('[Notifier] Notification request sent and localStorage updated.');
-          } else {
-            console.log('[Notifier] Forced notification request sent. Cooldown localStorage not updated.');
-          }
-          sentCount = remindersToNotify.length;
-      } else {
-          console.error('[Notifier] Backend failed to send notification.', res.statusText);
-      }
+            console.log('[Notifier] LocalStorage updated for sent notifications.');
+        }
     } else {
         console.log('[Notifier] No new reminders to notify about at this time (all are within cooldown period).');
     }
