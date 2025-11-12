@@ -13,8 +13,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-const NOTIFICATION_COOLDOWN_HOURS = 48;
-
 export async function showNotification(title: string, options: NotificationOptions) {
   if (!('serviceWorker' in navigator)) {
     throw new Error("Service Worker not supported");
@@ -140,7 +138,7 @@ function NotificationManager() {
   const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
   const { user } = useUser();
   const firestore = useFirestore();
-  const { urgencyThresholdDays, urgencyThresholdKm } = usePreferences();
+  const { urgencyThresholdDays, urgencyThresholdKm, notificationCooldownHours } = usePreferences();
   // State to trigger re-evaluation
   const [tick, setTick] = useState(0);
 
@@ -224,7 +222,7 @@ function NotificationManager() {
         return true; // Never notified
       }
       const hoursSinceLast = (now - lastTime) / (1000 * 60 * 60);
-       if (hoursSinceLast > NOTIFICATION_COOLDOWN_HOURS) {
+       if (hoursSinceLast > notificationCooldownHours) {
         console.log(`[Notifier] Reminder ${reminder.serviceType} was last notified ${hoursSinceLast.toFixed(1)} hours ago. It's a candidate.`);
         return true;
       }
@@ -262,12 +260,10 @@ function NotificationManager() {
         console.log('[Notifier] No new reminders to notify about at this time.');
     }
 
-  }, [urgentReminders, user, vehicle]);
+  }, [urgentReminders, user, vehicle, notificationCooldownHours]);
 
   
   return <NotificationUI onActivate={handleActivation} reminders={urgentReminders} vehicle={vehicle as Vehicle} />;
 }
 
 export default NotificationManager;
-
-    

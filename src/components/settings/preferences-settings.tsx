@@ -24,6 +24,8 @@ export default function PreferencesSettings() {
     setUrgencyThresholdDays,
     urgencyThresholdKm,
     setUrgencyThresholdKm,
+    notificationCooldownHours,
+    setNotificationCooldownHours,
   } = usePreferences();
   
   const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
@@ -109,10 +111,6 @@ export default function PreferencesSettings() {
     }
   };
 
-  const resetNotificationPermissions = () => {
-      alert("Para reiniciar los permisos, debes hacerlo manualmente en la configuración de tu navegador para este sitio web. Busca el icono de candado en la barra de direcciones.");
-  }
-
 
   return (
     <Card className="mt-4">
@@ -191,6 +189,30 @@ export default function PreferencesSettings() {
           </div>
           
           <Separator />
+
+          <div>
+            <Label className="text-base">Alertas de Notificaciones</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Controla la frecuencia de las notificaciones push.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <Label htmlFor="notification-cooldown">Horas entre notificaciones</Label>
+                    <Input 
+                        id="notification-cooldown"
+                        type="number"
+                        value={notificationCooldownHours}
+                        onChange={(e) => setNotificationCooldownHours(Number(e.target.value))}
+                        placeholder="Ej: 48"
+                    />
+                     <p className="text-xs text-muted-foreground mt-1">
+                        Tiempo de espera para volver a notificar un mismo servicio vencido.
+                    </p>
+                </div>
+            </div>
+          </div>
+          
+          <Separator />
           
            <div>
             <Label className="text-base">Diagnóstico de Notificaciones</Label>
@@ -202,9 +224,6 @@ export default function PreferencesSettings() {
             <div className="flex gap-2 mt-4">
                 <Button onClick={handleForceTestNotification} variant="outline">
                     Forzar Notificación de Prueba
-                </Button>
-                 <Button onClick={resetNotificationPermissions} variant="destructive">
-                    Reiniciar Permisos
                 </Button>
             </div>
           </div>

@@ -13,6 +13,8 @@ interface PreferencesContextType {
   setUrgencyThresholdDays: (days: number) => void;
   urgencyThresholdKm: number;
   setUrgencyThresholdKm: (km: number) => void;
+  notificationCooldownHours: number;
+  setNotificationCooldownHours: (hours: number) => void;
 }
 
 const PreferencesContext = createContext<PreferencesContextType | undefined>(undefined);
@@ -50,6 +52,9 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
   const [urgencyThresholdKm, setUrgencyThresholdKmState] = useState<number>(() => 
     parseInt(getItemFromStorage('urgencyThresholdKm', '1000'), 10)
   );
+  const [notificationCooldownHours, setNotificationCooldownHoursState] = useState<number>(() =>
+    parseInt(getItemFromStorage('notificationCooldownHours', '48'), 10)
+  );
 
   useEffect(() => {
     setItemInStorage('consumptionUnit', consumptionUnit);
@@ -63,6 +68,10 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
     setItemInStorage('urgencyThresholdKm', String(urgencyThresholdKm));
   }, [urgencyThresholdKm]);
 
+  useEffect(() => {
+    setItemInStorage('notificationCooldownHours', String(notificationCooldownHours));
+  }, [notificationCooldownHours]);
+
   const setConsumptionUnit = (unit: ConsumptionUnit) => {
     setConsumptionUnitState(unit);
   };
@@ -73,6 +82,10 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
 
   const setUrgencyThresholdKm = (km: number) => {
     setUrgencyThresholdKmState(km);
+  };
+
+  const setNotificationCooldownHours = (hours: number) => {
+    setNotificationCooldownHoursState(hours);
   };
 
   const getConsumptionValue = useCallback((kmPerLiter?: number | null): number => {
@@ -101,6 +114,8 @@ export const PreferencesProvider = ({ children }: { children: ReactNode }) => {
         setUrgencyThresholdDays,
         urgencyThresholdKm,
         setUrgencyThresholdKm,
+        notificationCooldownHours,
+        setNotificationCooldownHours,
       }}
     >
       {children}
