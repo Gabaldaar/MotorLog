@@ -70,7 +70,7 @@ export default function PreferencesSettings() {
   }, [isVehicleLoading, isLoadingLastLog, isLoadingReminders, vehicle]);
 
   const urgentReminders: ProcessedServiceReminder[] = useMemo(() => {
-    if (!dataIsReady || !serviceReminders || lastOdometer <= 0) return [];
+    if (!dataIsReady || !serviceReminders || !lastOdometer) return [];
     
     return serviceReminders
       .filter(r => !r.isCompleted)
@@ -99,18 +99,22 @@ export default function PreferencesSettings() {
 
     setIsSending(true);
     try {
-        const results = await sendUrgentRemindersNotification(user.uid, urgentReminders, vehicle, notificationCooldownHours, true); // ignoreCooldown = true
+        const results = await sendUrgentRemindersNotification(user.uid, urgentReminders, vehicle, notificationCooldownHours, true);
         
-        const sentCount = results.reduce((acc, r) => acc + r.sent, 0);
-        const expiredCount = results.reduce((acc, r) => acc + r.expired, 0);
+        if (!Array.isArray(results)) {
+          throw new Error("La respuesta del servidor no fue la esperada.");
+        }
+
+        const sentCount = results.reduce((acc, r) => acc + (r.sent || 0), 0);
+        const expiredCount = results.reduce((acc, r) => acc + (r.expired || 0), 0);
 
         if (sentCount > 0 || expiredCount > 0) {
             toast({ 
                 title: 'Respuesta del Servidor', 
-                description: `Enviados: ${sentCount}, Expirados/Eliminados: ${expiredCount}.`
+                description: `Enviados: ${sentCount}, Suscripciones Expiradas/Eliminadas: ${expiredCount}.`
             });
         } else {
-             toast({ title: 'Nada para enviar', description: 'No se encontraron suscripciones activas o los recordatorios están en cooldown.'});
+             toast({ title: 'Nada para enviar', description: 'No se encontraron suscripciones activas para enviar notificaciones.'});
         }
     } catch (error: any) {
         console.error('Error al forzar notificación:', error);
@@ -243,3 +247,5 @@ export default function PreferencesSettings() {
     </Card>
   );
 }
+
+    
