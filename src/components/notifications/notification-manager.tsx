@@ -19,36 +19,40 @@ export async function subscribeUserToPush(idToken: string) {
   }
   
   const registration = await navigator.serviceWorker.ready;
-  const existingSubscription = await registration.pushManager.getSubscription();
+  let subscription = await registration.pushManager.getSubscription();
 
-  if (existingSubscription) {
+  if (subscription) {
     console.log('[Push Manager] User is already subscribed.');
-    // Even if subscribed, we might want to re-sync with backend
-    await fetch('/api/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-        body: JSON.stringify(existingSubscription),
+  } else {
+    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!publicKey) {
+      console.error('VAPID public key not found. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY environment variable.');
+      throw new Error('VAPID public key not found.');
+    }
+
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
     });
-    return;
+    console.log('[Push Manager] User subscribed successfully.');
   }
 
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!publicKey) {
-    console.error('VAPID public key not found. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY environment variable.');
-    throw new Error('VAPID public key not found.');
+  // Always sync with backend
+  const response = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${idToken}` 
+      },
+      body: JSON.stringify(subscription),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || 'Failed to sync subscription with server.');
   }
 
-  const subscription = await registration.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(publicKey),
-  });
-
-  await fetch('/api/subscribe', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-    body: JSON.stringify(subscription),
-  });
-  console.log('[Push Manager] User subscribed successfully.');
+  return response.json();
 }
 
 // Export this function so it can be used by the settings page
@@ -58,7 +62,7 @@ export async function sendUrgentRemindersNotification(
   vehicle: Vehicle | null, 
   cooldownHours: number,
   ignoreCooldown = false // New parameter
-) {
+): Promise<any[]> {
     if (reminders.length === 0 || typeof window === 'undefined' || Notification.permission !== 'granted') {
       if (reminders.length > 0) {
         console.log(`[Notifier] Skipping: Reminders=${reminders.length}, Permission=${Notification.permission}`);
@@ -289,5 +293,3 @@ function NotificationManager() {
 }
 
 export default NotificationManager;
-
-    

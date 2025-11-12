@@ -9,6 +9,7 @@ const db = admin.firestore();
 export async function POST(request: Request) {
   const authorization = request.headers.get('Authorization');
   if (!authorization || !authorization.startsWith('Bearer ')) {
+    console.error('Unauthorized: No token provided in header.');
     return NextResponse.json({ error: 'Unauthorized: No token provided' }, { status: 401 });
   }
 
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
   const userId = decodedToken.uid;
   
   if (!userId) {
+     console.error('Unauthorized: Could not verify user from token.');
      return NextResponse.json({ error: 'Unauthorized: Could not verify user from token.' }, { status: 401 });
   }
 
@@ -44,7 +46,8 @@ export async function POST(request: Request) {
         subscription: subscription,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
-
+    
+    console.log(`Successfully saved subscription for user: ${userId}`);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error saving subscription:', error);
