@@ -210,7 +210,7 @@ function NotificationManager() {
 
   // Effect to trigger notifications
   useEffect(() => {
-    if (!user || urgentReminders.length === 0 || typeof window === 'undefined') {
+    if (!user || urgentReminders.length === 0 || typeof window === 'undefined' || Notification.permission !== 'granted') {
       return;
     }
 
@@ -269,3 +269,5 @@ function NotificationManager() {
 }
 
 export default NotificationManager;
+
+    
