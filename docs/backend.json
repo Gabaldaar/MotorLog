@@ -364,6 +364,26 @@
         "id",
         "name"
       ]
+    },
+    "PushSubscription": {
+      "title": "PushSubscription",
+      "description": "Represents a user's push notification subscription.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user this subscription belongs to."
+        },
+        "subscription": {
+          "type": "object",
+          "description": "The PushSubscription object from the browser."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the subscription was created."
+        }
+      }
     }
   },
   "auth": {
@@ -459,8 +479,18 @@
             "$ref": "#/backend/entities/TripType"
           }
         }
+      },
+      {
+        "path": "/subscriptions/{subscriptionId}",
+        "definition": {
+          "entityName": "PushSubscription",
+          "schema": {
+            "$ref": "#/backend/entities/PushSubscription"
+          },
+          "description": "Stores user push notification subscriptions."
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed for collaboration. All data entities like vehicles, fuel records, and reminders are in top-level collections, accessible by any authenticated user. This removes the user-specific data nesting, allowing for a shared data model. User profiles are kept separate and private."
+    "reasoning": "The Firestore structure is designed for collaboration. All data entities like vehicles, fuel records, and reminders are in top-level collections, accessible by any authenticated user. This removes the user-specific data nesting, allowing for a shared data model. User profiles are kept separate and private. A new top-level collection 'subscriptions' is added to store push notification subscriptions."
   }
 }
