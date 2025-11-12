@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid subscription object' }, { status: 400 });
     }
 
-    // Use the subscription endpoint as a unique ID for the document to prevent duplicates.
+    // Use a URL-safe, encoded version of the endpoint as the document ID to prevent duplicates.
     const docId = encodeURIComponent(subscription.endpoint);
     const docRef = db.collection('subscriptions').doc(docId);
     
@@ -45,9 +45,9 @@ export async function POST(request: Request) {
         userId: userId,
         subscription: subscription,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    }, { merge: true }); // Use merge: true to create or update
     
-    console.log(`Successfully saved subscription for user: ${userId}`);
+    console.log(`Successfully saved/updated subscription for user: ${userId}`);
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error saving subscription:', error);
