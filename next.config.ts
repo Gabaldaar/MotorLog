@@ -7,7 +7,6 @@ const pwaConfig = withPWA({
   register: true,
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
-  swSrc: 'public/sw.js',
   sw: 'sw.js',
 });
 
@@ -30,3 +29,4 @@ const nextConfig: NextConfig = {
 };
 
 export default pwaConfig(nextConfig);
+

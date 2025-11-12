@@ -1,20 +1,16 @@
-
 'use client';
 
 import { usePreferences } from '@/context/preferences-context';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Label } from '../ui/label';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import type { ConsumptionUnit, ProcessedServiceReminder, ServiceReminder, Vehicle } from '@/lib/types';
+import type { ConsumptionUnit } from '@/lib/types';
 import { Separator } from '../ui/separator';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
-import { useEffect, useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useEffect, useState } from 'react';
+import { useUser } from '@/firebase';
 import { useVehicles } from '@/context/vehicle-context';
-import { collection, query, limit, orderBy } from 'firebase/firestore';
-import { differenceInDays } from 'date-fns';
-import { sendUrgentRemindersNotification } from '../notifications/notification-manager';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -45,8 +41,8 @@ export default function PreferencesSettings() {
   }, []);
 
   const handleForceTestNotification = async () => {
-    if (!('serviceWorker' in navigator)) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Service Workers no son soportados en este navegador.' });
+    if (Notification.permission !== 'granted') {
+        toast({ variant: 'destructive', title: 'Permiso Requerido', description: 'Debes activar las notificaciones en el navegador primero.' });
         return;
     }
     
@@ -57,14 +53,14 @@ export default function PreferencesSettings() {
         const subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
-            toast({ variant: 'destructive', title: 'No Suscrito', description: 'No estás suscrito a notificaciones. Por favor, activa las notificaciones primero.' });
+            toast({ variant: 'destructive', title: 'No Suscrito', description: 'No se encontró una suscripción activa. Intenta recargar la página.' });
             setIsSending(false);
             return;
         }
 
         const payload = {
             title: 'Notificación de Prueba',
-            body: '¡Esto es una notificación enviada desde tu PWA!',
+            body: '¡Si ves esto, las notificaciones funcionan correctamente!',
             icon: vehicle?.imageUrl || '/icon-192x192.png'
         };
 
@@ -79,14 +75,11 @@ export default function PreferencesSettings() {
            throw new Error(errorData.error || 'Falló la respuesta del servidor');
         }
 
-        const result = await res.json();
-        
-        if (result.success) {
-            toast({ 
-                title: '¡Solicitud Enviada!', 
-                description: 'La notificación de prueba debería llegar en breve.'
-            });
-        }
+        toast({ 
+            title: '¡Notificación Enviada!', 
+            description: 'La notificación de prueba debería llegar en breve.'
+        });
+
     } catch (error: any) {
         console.error('Error al forzar notificación:', error);
         toast({ variant: 'destructive', title: 'Error de Envío', description: error.message });

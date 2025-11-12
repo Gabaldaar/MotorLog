@@ -1,320 +1,195 @@
 'use client';
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { useVehicles } from '@/context/vehicle-context';
-import { usePreferences } from '@/context/preferences-context';
-import type { ProcessedFuelLog, ProcessedServiceReminder, ServiceReminder, Vehicle } from '@/lib/types';
-import { differenceInDays } from 'date-fns';
+import { useEffect, useState, useCallback } from 'react';
+import { useUser } from '@/firebase';
 import { Button } from '../ui/button';
 import { BellRing, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-// --- SERVICE WORKER REGISTRATION ---
+// --- MAIN FUNCTIONS ---
+
 /**
- * Registers the service worker.
- * @returns {Promise<ServiceWorkerRegistration | undefined>}
+ * Registers the service worker and subscribes the user to push notifications.
+ * It's designed to be called when the app loads or when permission is granted.
+ * @returns {Promise<PushSubscription | null>} The subscription object or null if failed.
  */
-async function registerServiceWorker(): Promise<ServiceWorkerRegistration | undefined> {
-  if (!('serviceWorker' in navigator)) {
-    console.error("Service Worker not supported");
-    return undefined;
+async function subscribeUser(): Promise<PushSubscription | null> {
+  // 1. Check for browser support
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.error("Push notifications are not supported by this browser.");
+    throw new Error("Push notifications no son soportadas.");
   }
+
+  // 2. Register the service worker
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registration successful with scope: ', registration.scope);
-    return registration;
-  } catch (err) {
-    console.error('Service Worker registration failed: ', err);
-    return undefined;
+    await navigator.serviceWorker.register('/sw.js');
+    console.log("Service Worker registered successfully.");
+  } catch (error) {
+    console.error("Service Worker registration failed:", error);
+    throw new Error("Falló el registro del Service Worker.");
+  }
+
+  // 3. Wait for the service worker to be ready
+  const registration = await navigator.serviceWorker.ready;
+  
+  // 4. Check for an existing subscription
+  let subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    console.log("User IS already subscribed.");
+    return subscription;
+  }
+
+  // 5. If not subscribed, create a new subscription
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!vapidPublicKey) {
+    console.error("VAPID public key is not defined.");
+    throw new Error("Falta la clave de configuración de notificaciones.");
+  }
+
+  try {
+    console.log("User is NOT subscribed. Subscribing now...");
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+    console.log("User subscribed successfully:", subscription);
+    return subscription;
+  } catch (error) {
+    console.error("Failed to subscribe the user:", error);
+    throw new Error("No se pudo suscribir al usuario a las notificaciones.");
   }
 }
 
-
-export async function subscribeUserToPush(idToken: string) {
-  if (!('serviceWorker' in navigator)) {
-    throw new Error("Service Worker not supported");
-  }
-  
-  const registration = await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
-
-  if (subscription) {
-    console.log('[Push Manager] User is already subscribed.');
-  } else {
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!publicKey) {
-      console.error('VAPID public key not found. Set NEXT_PUBLIC_VAPID_PUBLIC_KEY environment variable.');
-      throw new Error('VAPID public key not found.');
-    }
-
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
-    console.log('[Push Manager] User subscribed successfully.');
-  }
-
-  // Always sync with backend
+/**
+ * Sends the subscription object to the backend API to be saved.
+ * @param {PushSubscription} subscription - The subscription object from the browser.
+ * @param {string} idToken - The Firebase auth ID token for the user.
+ */
+async function syncSubscriptionWithServer(subscription: PushSubscription, idToken: string): Promise<void> {
   const response = await fetch('/api/subscribe', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${idToken}` 
-      },
-      body: JSON.stringify(subscription),
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${idToken}`,
+    },
+    body: JSON.stringify(subscription),
   });
 
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.error || 'Failed to sync subscription with server.');
   }
-
-  return response.json();
-}
-
-// Export this function so it can be used by the settings page
-export async function sendUrgentRemindersNotification(
-  userId: string, 
-  reminders: ProcessedServiceReminder[], 
-  vehicle: Vehicle | null, 
-  cooldownHours: number,
-  ignoreCooldown = false // New parameter
-): Promise<any[]> {
-    const apiResults = [];
-
-    if (reminders.length === 0 || typeof window === 'undefined' || Notification.permission !== 'granted') {
-      if (reminders.length > 0) {
-        console.log(`[Notifier] Skipping: Reminders=${reminders.length}, Permission=${Notification.permission}`);
-      }
-      return [];
-    }
-
-    const lastNotificationTimes = JSON.parse(localStorage.getItem('lastNotificationTimes') || '{}');
-    const now = new Date().getTime();
-    
-    const remindersToNotify = reminders.filter(reminder => {
-      if (ignoreCooldown) {
-        return true; // Ignore cooldown for forced send
-      }
-      const lastTime = lastNotificationTimes[reminder.id];
-      if (!lastTime) {
-        return true; 
-      }
-      const hoursSinceLast = (now - lastTime) / (1000 * 60 * 60);
-      return hoursSinceLast > cooldownHours;
-    });
-
-    if (remindersToNotify.length > 0) {
-        console.log(`[Notifier] Found ${remindersToNotify.length} reminders to notify about.`, remindersToNotify.map(r => r.serviceType));
-        
-        // This part now needs to get the subscription object to send to the backend
-        const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
-
-        if (!subscription) {
-            console.error('[Notifier] Could not get push subscription to send notifications.');
-            return [{ error: 'Could not get push subscription.' }];
-        }
-        
-        for (const reminder of remindersToNotify) {
-            const payload = {
-                title: `${reminder.isOverdue ? 'Servicio Vencido' : 'Servicio Urgente'}: ${vehicle?.make}`,
-                body: `${reminder.serviceType}`,
-                icon: vehicle?.imageUrl || '/icon-192x192.png'
-            };
-
-            try {
-                const res = await fetch('/api/send-push', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ subscription, payload }),
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    apiResults.push(data);
-                    if (data.success && !ignoreCooldown) {
-                        lastNotificationTimes[reminder.id] = now;
-                    }
-                } else {
-                    const errorData = await res.json();
-                    console.error(`[Notifier] Backend failed to send notification for ${reminder.serviceType}.`, errorData);
-                    apiResults.push({ error: `Failed for ${reminder.serviceType}: ${errorData.error}` });
-                }
-            } catch (error) {
-                console.error(`[Notifier] Network error sending notification for ${reminder.serviceType}.`, error);
-                apiResults.push({ error: `Network error for ${reminder.serviceType}` });
-            }
-        }
-        
-        if (!ignoreCooldown) {
-            localStorage.setItem('lastNotificationTimes', JSON.stringify(lastNotificationTimes));
-            console.log('[Notifier] LocalStorage updated for sent notifications.');
-        }
-    } else {
-        console.log('[Notifier] No new reminders to notify about at this time (all are within cooldown period).');
-    }
-    return apiResults;
+  console.log("Subscription synced successfully with the server.");
 }
 
 
-interface NotificationUIProps {
-  onActivate: () => Promise<any>;
-}
+// --- UI COMPONENT ---
 
-function NotificationUI({ onActivate }: NotificationUIProps) {
+function NotificationUI() {
   const [notificationPermission, setNotificationPermission] = useState('default');
-  const [showPermissionCard, setShowPermissionCard] = useState(false);
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const { toast } = useToast();
+  const { user } = useUser();
 
   useEffect(() => {
     setIsMounted(true);
-    if (typeof window !== 'undefined' && 'Notification' in window) {
+    if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
-      if (Notification.permission === 'default') {
-        setShowPermissionCard(true);
-      }
     }
   }, []);
 
-  const handleRequestPermission = async () => {
+  const handleRequestAndSubscribe = async () => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para activar notificaciones.' });
+        return;
+    }
+
     setIsSubscribing(true);
     try {
-        const permission = await Notification.requestPermission();
-        setNotificationPermission(permission);
-        
-        if (permission === 'granted') {
-            await onActivate();
-            toast({
-                title: '¡Notificaciones Activadas!',
-                description: 'Ahora recibirás alertas de mantenimiento.'
-            })
-            setShowPermissionCard(false);
+      // Step 1: Request permission from the user
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+
+      if (permission === 'granted') {
+        toast({ title: '¡Permiso Concedido!', description: 'Sincronizando con el servidor...' });
+
+        // Step 2: Subscribe and sync
+        const subscription = await subscribeUser();
+        if (subscription) {
+          const idToken = await user.getIdToken();
+          await syncSubscriptionWithServer(subscription, idToken);
+          toast({ title: '¡Notificaciones Activadas!', description: 'Todo listo para recibir alertas.' });
         } else {
-             toast({
-                variant: 'destructive',
-                title: 'Permiso Denegado',
-                description: 'No podremos enviarte notificaciones.'
-            })
+           throw new Error('No se pudo obtener la suscripción.');
         }
 
+      } else {
+        toast({ variant: 'destructive', title: 'Permiso Denegado', description: 'No podremos enviarte notificaciones.' });
+      }
     } catch (error: any) {
-        console.error('Error subscribing to push notifications:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Error de Suscripción',
-            description: error.message || 'No se pudieron activar las notificaciones.'
-        })
+      console.error('Error during subscription process:', error);
+      toast({ variant: 'destructive', title: 'Error de Suscripción', description: error.message });
     } finally {
-        setIsSubscribing(false);
+      setIsSubscribing(false);
     }
   };
 
-  if (!isMounted || !showPermissionCard || notificationPermission === 'granted') {
+  if (!isMounted || notificationPermission !== 'default') {
     return null;
   }
 
   return (
-      <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><BellRing /> Activar Notificaciones</CardTitle>
-            <CardDescription>Recibe alertas sobre los servicios de mantenimiento importantes.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" onClick={handleRequestPermission} disabled={isSubscribing}>
-                {isSubscribing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Activar
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="fixed bottom-4 right-4 z-50 w-full max-w-sm">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><BellRing /> Activar Notificaciones</CardTitle>
+          <CardDescription>Recibe alertas sobre los servicios de mantenimiento importantes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button className="w-full" onClick={handleRequestAndSubscribe} disabled={isSubscribing}>
+            {isSubscribing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Activar
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
-function NotificationManager() {
-  const { selectedVehicle: vehicle, isLoading: isVehicleLoading } = useVehicles();
-  const { user } = useUser();
-  const firestore = useFirestore();
-  const { urgencyThresholdDays, urgencyThresholdKm, notificationCooldownHours } = usePreferences();
-  
-  const [tick, setTick] = useState(0);
 
+// --- MAIN COMPONENT ---
+
+export default function NotificationManager() {
+  const { user, isUserLoading } = useUser();
+
+  // Effect to automatically subscribe if permission is already granted
   useEffect(() => {
-    // Register the service worker as soon as the component mounts
-    registerServiceWorker();
+    const autoSubscribe = async () => {
+      if (user && Notification.permission === 'granted') {
+        console.log("Permission already granted. Attempting to subscribe and sync...");
+        try {
+          const subscription = await subscribeUser();
+          if (subscription) {
+            const idToken = await user.getIdToken();
+            await syncSubscriptionWithServer(subscription, idToken);
+          }
+        } catch (error) {
+          console.error("Auto-subscription failed:", error);
+          // Don't show a toast here to avoid bothering the user on every load
+        }
+      }
+    };
 
-    const interval = setInterval(() => {
-      console.log('[Notifier] Periodic check triggered.');
-      setTick(prev => prev + 1);
-    }, 15 * 60 * 1000); 
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const lastFuelLogQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(
-      collection(firestore, 'vehicles', vehicle.id, 'fuel_records'),
-      orderBy('odometer', 'desc'),
-      limit(1)
-    );
-  }, [firestore, user, vehicle]);
-
-  const remindersQuery = useMemoFirebase(() => {
-    if (!user || !vehicle) return null;
-    return query(collection(firestore, 'vehicles', vehicle.id, 'service_reminders'));
-  }, [firestore, user, vehicle]);
-
-  const { data: lastFuelLogData, isLoading: isLoadingLastLog } = useCollection<ProcessedFuelLog>(lastFuelLogQuery);
-  const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
-  
-  const lastOdometer = useMemo(() => lastFuelLogData?.[0]?.odometer || 0, [lastFuelLogData]);
-
-  const urgentReminders = useMemo((): ProcessedServiceReminder[] => {
-    if (isVehicleLoading || isLoadingLastLog || isLoadingReminders || !serviceReminders || !lastOdometer) {
-      return [];
+    if (!isUserLoading) {
+      autoSubscribe();
     }
-    
-    return serviceReminders
-      .filter(r => !r.isCompleted)
-      .map(r => {
-        const kmsRemaining = r.dueOdometer ? r.dueOdometer - lastOdometer : null;
-        const daysRemaining = r.dueDate ? differenceInDays(new Date(r.dueDate), new Date()) : null;
-        const isOverdue = (kmsRemaining !== null && kmsRemaining < 0) || (daysRemaining !== null && daysRemaining < 0);
-        const isUrgent = !isOverdue && (
-          (kmsRemaining !== null && kmsRemaining <= urgencyThresholdKm) ||
-          (daysRemaining !== null && daysRemaining <= urgencyThresholdDays)
-        );
-        return { ...r, kmsRemaining, daysRemaining, isOverdue, isUrgent };
-      }).filter(r => r.isOverdue || r.isUrgent);
-  }, [serviceReminders, lastOdometer, urgencyThresholdKm, urgencyThresholdDays, isVehicleLoading, isLoadingLastLog, isLoadingReminders]);
+  }, [user, isUserLoading]);
 
-  const handleActivation = useCallback(async () => {
-    if (!user) throw new Error("Usuario no autenticado");
-    const idToken = await user.getIdToken();
-    await subscribeUserToPush(idToken);
-  }, [user]);
-
-  useEffect(() => {
-    const runCheck = async () => {
-        if (!user || !vehicle || urgentReminders.length === 0) return;
-        console.log('[Notifier] Running periodic check...');
-        await sendUrgentRemindersNotification(user.uid, urgentReminders, vehicle, notificationCooldownHours);
-    }
-    // Only run on initial load and on timer ticks
-    if (tick > 0 || (lastOdometer > 0 && serviceReminders)) {
-        runCheck();
-    }
-  }, [tick, user, vehicle, urgentReminders, notificationCooldownHours, lastOdometer, serviceReminders]);
-  
-  return <NotificationUI onActivate={handleActivation} />;
+  return <NotificationUI />;
 }
 
-export default NotificationManager;
+// These functions are exported for use in the settings page
+export { subscribeUser, syncSubscriptionWithServer };
