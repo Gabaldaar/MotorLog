@@ -89,7 +89,7 @@ export default function PreferencesSettings() {
 
   const handleForceTestNotification = async () => {
     if (!user) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Selecciona un vehículo e inicia sesión.'});
+        toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión para enviar notificaciones.'});
         return;
     }
     
@@ -114,13 +114,18 @@ export default function PreferencesSettings() {
 
         const result = await res.json();
         
-        if (result.sent > 0 || result.expired > 0) {
+        if (result.sent > 0) {
             toast({ 
-                title: 'Respuesta del Servidor', 
-                description: `Enviados: ${result.sent}, Suscripciones Expiradas/Eliminadas: ${result.expired}.`
+                title: '¡Éxito!', 
+                description: `Se envió una solicitud para ${result.sent} notificación(es).`
+            });
+        } else if (result.expired > 0) {
+             toast({ 
+                title: 'Suscripciones Expiradas', 
+                description: `Se encontraron y eliminaron ${result.expired} suscripciones inactivas. Intenta de nuevo.`
             });
         } else {
-             toast({ title: 'Nada para enviar', description: 'No se encontraron suscripciones activas para enviar notificaciones.'});
+             toast({ title: 'Nada que enviar', description: 'No se encontraron suscripciones activas para enviar notificaciones.'});
         }
     } catch (error: any) {
         console.error('Error al forzar notificación:', error);
