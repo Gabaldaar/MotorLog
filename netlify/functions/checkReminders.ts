@@ -17,6 +17,7 @@ async function getLatestOdometer(vehicleId: string): Promise<number> {
     if (vehicleOdometerCache.has(vehicleId)) {
         return vehicleOdometerCache.get(vehicleId)!;
     }
+    // Correctly reference the subcollection 'fuel_records'
     const lastLogSnap = await db.collection('vehicles').doc(vehicleId).collection('fuel_records').orderBy('odometer', 'desc').limit(1).get();
     if (lastLogSnap.empty) {
         vehicleOdometerCache.set(vehicleId, 0);
@@ -61,7 +62,7 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
     // These should come from a global config, but hardcoded for now.
     const URGENCY_THRESHOLD_KM = 1000;
     const URGENCY_THRESHOLD_DAYS = 15;
-    const NOTIFICATION_COOLDOWN_HOURS = 48;
+    const NOTIFICATION_COOLDOWN_HOURS = 1; // Lowered for testing
 
     for (const reminder of pendingReminders) {
         const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;
@@ -119,11 +120,13 @@ export const handler: Handler = async () => {
   // --- START VAPID CONFIG ---
   // Moved inside the handler to run at request time, not build time.
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        'mailto:your-email@example.com',
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
+      if (!webpush.getVapidDetails()) {
+        webpush.setVapidDetails(
+            'mailto:your-email@example.com',
+            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+            process.env.VAPID_PRIVATE_KEY
+        );
+      }
   } else {
      console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
      return {
