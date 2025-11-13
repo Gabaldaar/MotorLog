@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import type { ProcessedFuelLog, ServiceReminder, ProcessedServiceReminder, Vehicle } from '@/lib/types';
 import WelcomeBanner from '@/components/dashboard/welcome-banner';
 import StatCard from '@/components/dashboard/stat-card';
@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import AddVehicleDialog from '@/components/dashboard/add-vehicle-dialog';
+import { triggerRemindersCheck } from '@/components/notifications/notification-manager';
 
 
 function processFuelLogs(logs: ProcessedFuelLog[]): ProcessedFuelLog[] {
@@ -76,6 +77,20 @@ export default function DashboardPage() {
   
   const { data: allFuelLogsData, isLoading: isLoadingLogs } = useCollection<ProcessedFuelLog>(allFuelLogsQuery);
   const { data: serviceReminders, isLoading: isLoadingReminders } = useCollection<ServiceReminder>(remindersQuery);
+
+  // Automatically check for reminders when the dashboard loads for the selected vehicle.
+  useEffect(() => {
+    if (vehicle?.id) {
+      // Use a short timeout to prevent this from blocking initial render.
+      // This is a "fire-and-forget" call.
+      const timer = setTimeout(() => {
+        console.log(`Checking reminders for ${vehicle.id} on dashboard load.`);
+        triggerRemindersCheck(vehicle.id);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [vehicle?.id]);
   
   const vehicleFuelLogs = useMemo(() => processFuelLogs(allFuelLogsData || []), [allFuelLogsData]);
   
@@ -238,3 +253,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+  
