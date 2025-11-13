@@ -53,7 +53,7 @@ export default function PreferencesSettings() {
         const subscription = await registration.pushManager.getSubscription();
 
         if (!subscription) {
-            toast({ variant: 'destructive', title: 'No Suscrito', description: 'No se encontró una suscripción activa. Intenta recargar la página.' });
+            toast({ variant: 'destructive', title: 'No Suscrito', description: 'No se encontró una suscripción activa. Intenta recargar la página o reactivar los permisos.' });
             setIsSending(false);
             return;
         }
@@ -61,7 +61,7 @@ export default function PreferencesSettings() {
         const payload = {
             title: 'Notificación de Prueba',
             body: '¡Si ves esto, las notificaciones funcionan correctamente!',
-            icon: vehicle?.imageUrl || '/icon-192x192.png'
+            icon: '/icon-192x192.png'
         };
 
         const res = await fetch('/api/send-push', {
@@ -76,8 +76,8 @@ export default function PreferencesSettings() {
         }
 
         toast({ 
-            title: '¡Notificación Enviada!', 
-            description: 'La notificación de prueba debería llegar en breve.'
+            title: '¡Notificación de Prueba Enviada!', 
+            description: 'El mensaje de prueba debería llegar en breve.'
         });
 
     } catch (error: any) {
@@ -214,3 +214,5 @@ export default function PreferencesSettings() {
     </Card>
   );
 }
+
+    

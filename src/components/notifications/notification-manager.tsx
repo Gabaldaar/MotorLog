@@ -8,66 +8,81 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { urlBase64ToUint8Array } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-// --- MAIN FUNCTIONS ---
+
+// This function will be called from other components to trigger the check
+export const triggerRemindersCheck = async (vehicleId: string) => {
+  if (!vehicleId) {
+    console.error("Vehicle ID is required to check reminders.");
+    return;
+  }
+  
+  console.log(`Triggering reminder check for vehicle: ${vehicleId}`);
+  
+  try {
+    const response = await fetch('/api/check-and-send-reminders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vehicleId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to trigger reminder check.");
+    }
+
+    const result = await response.json();
+    console.log("Reminder check API response:", result);
+    return result;
+  } catch (error: any) {
+    console.error("Error triggering reminder check:", error.message);
+  }
+};
+
 
 /**
- * Registers the service worker and subscribes the user to push notifications.
- * It's designed to be called when the app loads or when permission is granted.
- * @returns {Promise<PushSubscription | null>} The subscription object or null if failed.
+ * Registers the service worker.
+ * @returns {Promise<ServiceWorkerRegistration>}
  */
-async function subscribeUser(): Promise<PushSubscription | null> {
-  // 1. Check for browser support
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.error("Push notifications are not supported by this browser.");
-    throw new Error("Push notifications no son soportadas.");
+async function registerServiceWorker(): Promise<ServiceWorkerRegistration> {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error("Service Workers no son soportados.");
   }
-
-  // 2. Register the service worker
   try {
-    await navigator.serviceWorker.register('/sw.js');
-    console.log("Service Worker registered successfully.");
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log("Service Worker registrado correctamente.");
+    return registration;
   } catch (error) {
-    console.error("Service Worker registration failed:", error);
-    throw new Error("Falló el registro del Service Worker.");
-  }
-
-  // 3. Wait for the service worker to be ready
-  const registration = await navigator.serviceWorker.ready;
-  
-  // 4. Check for an existing subscription
-  let subscription = await registration.pushManager.getSubscription();
-  if (subscription) {
-    console.log("User IS already subscribed.");
-    return subscription;
-  }
-
-  // 5. If not subscribed, create a new subscription
-  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidPublicKey) {
-    console.error("VAPID public key is not defined.");
-    throw new Error("Falta la clave de configuración de notificaciones.");
-  }
-
-  try {
-    console.log("User is NOT subscribed. Subscribing now...");
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
-    console.log("User subscribed successfully:", subscription);
-    return subscription;
-  } catch (error) {
-    console.error("Failed to subscribe the user:", error);
-    throw new Error("No se pudo suscribir al usuario a las notificaciones.");
+    console.error("Fallo el registro del Service Worker:", error);
+    throw new Error("Fallo el registro del Service Worker.");
   }
 }
 
 /**
- * Sends the subscription object to the backend API to be saved.
- * @param {PushSubscription} subscription - The subscription object from the browser.
+ * Creates a subscription and sends it to the server.
  * @param {string} idToken - The Firebase auth ID token for the user.
  */
-async function syncSubscriptionWithServer(subscription: PushSubscription, idToken: string): Promise<void> {
+async function subscribeAndSync(idToken: string): Promise<void> {
+  if (!('PushManager' in window)) {
+    throw new Error("Push notifications no son soportadas.");
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (!subscription) {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidPublicKey) {
+      throw new Error("Falta la clave de configuración de notificaciones.");
+    }
+    console.log("Creando nueva suscripción...");
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
+  } else {
+    console.log("Usando suscripción existente.");
+  }
+
   const response = await fetch('/api/subscribe', {
     method: 'POST',
     headers: {
@@ -81,7 +96,7 @@ async function syncSubscriptionWithServer(subscription: PushSubscription, idToke
     const errorData = await response.json();
     throw new Error(errorData.error || 'Failed to sync subscription with server.');
   }
-  console.log("Subscription synced successfully with the server.");
+  console.log("Suscripción sincronizada con el servidor.");
 }
 
 
@@ -109,28 +124,19 @@ function NotificationUI() {
 
     setIsSubscribing(true);
     try {
-      // Step 1: Request permission from the user
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
 
       if (permission === 'granted') {
         toast({ title: '¡Permiso Concedido!', description: 'Sincronizando con el servidor...' });
-
-        // Step 2: Subscribe and sync
-        const subscription = await subscribeUser();
-        if (subscription) {
-          const idToken = await user.getIdToken();
-          await syncSubscriptionWithServer(subscription, idToken);
-          toast({ title: '¡Notificaciones Activadas!', description: 'Todo listo para recibir alertas.' });
-        } else {
-           throw new Error('No se pudo obtener la suscripción.');
-        }
-
+        const idToken = await user.getIdToken();
+        await subscribeAndSync(idToken);
+        toast({ title: '¡Notificaciones Activadas!', description: 'Todo listo para recibir alertas.' });
       } else {
         toast({ variant: 'destructive', title: 'Permiso Denegado', description: 'No podremos enviarte notificaciones.' });
       }
     } catch (error: any) {
-      console.error('Error during subscription process:', error);
+      console.error('Error durante el proceso de suscripción:', error);
       toast({ variant: 'destructive', title: 'Error de Suscripción', description: error.message });
     } finally {
       setIsSubscribing(false);
@@ -165,31 +171,28 @@ function NotificationUI() {
 export default function NotificationManager() {
   const { user, isUserLoading } = useUser();
 
-  // Effect to automatically subscribe if permission is already granted
   useEffect(() => {
-    const autoSubscribe = async () => {
-      if (user && Notification.permission === 'granted') {
-        console.log("Permission already granted. Attempting to subscribe and sync...");
-        try {
-          const subscription = await subscribeUser();
-          if (subscription) {
+    const autoProcess = async () => {
+      if (user && 'serviceWorker' in navigator && 'PushManager' in window) {
+        await registerServiceWorker();
+        if (Notification.permission === 'granted') {
+          console.log("Permiso concedido. Intentando suscribir y sincronizar...");
+          try {
             const idToken = await user.getIdToken();
-            await syncSubscriptionWithServer(subscription, idToken);
+            await subscribeAndSync(idToken);
+          } catch (error) {
+            console.error("Auto-suscripción falló:", error);
           }
-        } catch (error) {
-          console.error("Auto-subscription failed:", error);
-          // Don't show a toast here to avoid bothering the user on every load
         }
       }
     };
 
     if (!isUserLoading) {
-      autoSubscribe();
+      autoProcess();
     }
   }, [user, isUserLoading]);
 
   return <NotificationUI />;
 }
 
-// These functions are exported for use in the settings page
-export { subscribeUser, syncSubscriptionWithServer };
+    

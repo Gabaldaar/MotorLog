@@ -46,6 +46,7 @@ import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { FuelLog, User, Vehicle, ConfigItem } from '@/lib/types';
 import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { triggerRemindersCheck } from '../notifications/notification-manager';
 
 
 const formSchema = z.object({
@@ -217,6 +218,9 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     };
 
     setDocumentNonBlocking(fuelLogRef, fuelLogData, { merge: true });
+
+    // Trigger notification check, but don't wait for it
+    triggerRemindersCheck(vehicleId);
 
     toast({
       title: isEditing ? 'Registro Actualizado' : 'Registro Añadido',
@@ -491,3 +495,5 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     </Dialog>
   );
 }
+
+    

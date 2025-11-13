@@ -44,6 +44,7 @@ export type ServiceReminder = {
   isRecurring?: boolean | null;
   recurrenceIntervalKm?: number | null;
   date: string; // Unified date for timeline
+  lastNotificationSent?: string | null;
 };
 
 export type TripExpense = {
@@ -99,3 +100,6 @@ export type TimelineItem = {
   date: string;
   data: ProcessedFuelLog | ProcessedServiceReminder | Trip;
 };
+
+
+    
