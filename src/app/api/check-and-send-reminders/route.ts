@@ -29,13 +29,11 @@ export async function POST(request: Request) {
   // --- START VAPID CONFIG ---
   // Moved inside the handler to run at request time, not build time.
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      if (!webpush.getVapidDetails()) {
-        webpush.setVapidDetails(
-            'mailto:your-email@example.com',
-            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-            process.env.VAPID_PRIVATE_KEY
-        );
-      }
+    webpush.setVapidDetails(
+        'mailto:your-email@example.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
   } else {
     console.error('VAPID keys are missing. Push notifications will fail.');
   }

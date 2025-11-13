@@ -119,13 +119,11 @@ export const handler: Handler = async () => {
   // --- START VAPID CONFIG ---
   // Moved inside the handler to run at request time, not build time.
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      if (!webpush.getVapidDetails()) {
-        webpush.setVapidDetails(
-            'mailto:your-email@example.com',
-            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-            process.env.VAPID_PRIVATE_KEY
-        );
-      }
+    webpush.setVapidDetails(
+        'mailto:your-email@example.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
   } else {
      console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
      return {
