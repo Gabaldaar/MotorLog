@@ -5,8 +5,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Schedule the "checkReminders" function to run daily at 8:00 UTC
-[[functions]]
-  name = "checkReminders"
-  schedule = "0 8 * * *"
