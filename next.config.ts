@@ -4,7 +4,7 @@ import withPWA from 'next-pwa';
 
 const pwaConfig = withPWA({
   dest: 'public',
-  register: true,
+  register: true, // Ensure the SW is registered
   skipWaiting: true,
   disable: process.env.NODE_ENV === 'development',
   sw: 'sw.js',
@@ -29,4 +29,3 @@ const nextConfig: NextConfig = {
 };
 
 export default pwaConfig(nextConfig);
-
