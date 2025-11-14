@@ -1,0 +1,26 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Permite al proceso del servidor (cron job) leer cualquier dato.
+    function isServerProcess() {
+      return request.auth == null;
+    }
+  
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // La colección de suscripciones debe ser escribible por usuarios autenticados
+    // para que puedan guardar su propia suscripción.
+    // La lectura debe ser solo para el proceso del servidor para proteger la privacidad.
+    match /subscriptions/{subscriptionId} {
+      allow read: if isServerProcess();
+      allow write: if isSignedIn();
+    }
+    
+    // ADAPTAR: Añade aquí tus otras reglas de seguridad.
+    // ...
+  }
+}

@@ -1,0 +1,109 @@
+
+'use server';
+
+import type { Handler } from '@netlify/functions';
+import admin from '@/firebase/admin';
+import webpush, { type PushSubscription } from 'web-push';
+
+// ADAPTAR: Importa los tipos de datos que necesites para tu lógica
+// import type { MyDataType } from '@/lib/types';
+
+
+const db = admin.firestore();
+
+// Lógica Principal de la Función
+async function runNotificationLogic() {
+    let notificationsSent = 0;
+
+    // --- 1. OBTENER DATOS RELEVANTES DE FIRESTORE ---
+    // ADAPTAR: Esta es la parte más importante que debes cambiar.
+    // Aquí es donde consultas tu base de datos para ver si se cumple
+    // alguna condición para enviar una notificación.
+    // Por ejemplo, podrías buscar "proyectos que vencen mañana".
+    
+    // Ejemplo de MotorLog:
+    // const vehiclesSnap = await db.collection('vehicles').get();
+    // for (const vehicleDoc of vehiclesSnap.docs) {
+    //   const remindersSnap = await vehicleDoc.ref.collection('service_reminders').where('isCompleted', '==', false).get();
+    //   // ... resto de la lógica ...
+    // }
+    
+    // Por ahora, para que funcione, simularemos que encontramos una condición.
+    const conditionMet = true; 
+    const notificationPayload = {
+        title: 'Alerta de tu App',
+        body: '¡Algo importante requiere tu atención!',
+        icon: '/icon-192x192.png'
+    };
+
+    if (!conditionMet) {
+        return 0; // No hay nada que notificar
+    }
+
+    // --- 2. OBTENER TODAS LAS SUSCRIPCIONES ---
+    const subscriptionsSnap = await db.collection('subscriptions').get();
+    if (subscriptionsSnap.empty) {
+        return 0; // No hay nadie a quien notificar
+    }
+    const allSubscriptions = subscriptionsSnap.docs.map(doc => doc.data().subscription as PushSubscription);
+
+    // --- 3. ENVIAR NOTIFICACIONES ---
+    const payloadString = JSON.stringify(notificationPayload);
+
+    const sendPromises = allSubscriptions.map(subscription => 
+        webpush.sendNotification(subscription, payloadString).catch(error => {
+             if (error.statusCode === 410) { // GONE: La suscripción expiró
+                console.log('[Cron] Subscription expired. Deleting from DB...');
+                db.collection('subscriptions').where('subscription.endpoint', '==', subscription.endpoint).limit(1).get()
+                 .then(snap => {
+                     if (!snap.empty) snap.docs[0].ref.delete();
+                 });
+            } else {
+                console.error(`[Cron] Failed to send notification:`, error.message);
+            }
+        })
+    );
+    
+    await Promise.all(sendPromises);
+    notificationsSent = allSubscriptions.length;
+
+    return notificationsSent;
+}
+
+
+// Handler de Netlify (el punto de entrada)
+export const handler: Handler = async () => {
+  console.log('[Netlify Function] - Cron job triggered.');
+
+  // --- CONFIGURACIÓN DE VAPID ---
+  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        'mailto:tu-email@ejemplo.com', // ADAPTAR: Cambia esto a tu email
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+  } else {
+     console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
+     return {
+        statusCode: 500,
+        body: 'VAPID keys are not set on the server.'
+     }
+  }
+
+  try {
+    const totalNotificationsSent = await runNotificationLogic();
+    const successMessage = `Cron job completed. Sent ${totalNotificationsSent} notifications.`;
+    console.log(`[Netlify Function] - ${successMessage}`);
+    return {
+        statusCode: 200,
+        body: successMessage
+    };
+
+  } catch (error: any) {
+    console.error('[Netlify Function] - Error during execution:', error);
+    return {
+        statusCode: 500,
+        body: `Internal server error: ${error.message}`
+    };
+  }
+}
