@@ -62,7 +62,7 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
     // These should come from a global config, but hardcoded for now.
     const URGENCY_THRESHOLD_KM = 1000;
     const URGENCY_THRESHOLD_DAYS = 15;
-    const NOTIFICATION_COOLDOWN_HOURS = 1;
+    const NOTIFICATION_COOLDOWN_HOURS = 24;
 
     for (const reminder of pendingReminders) {
         const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;
