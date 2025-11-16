@@ -3,6 +3,7 @@
 
 
 
+
 export type Vehicle = {
   id: string;
   make: string;
@@ -19,6 +20,8 @@ export type Vehicle = {
   purchaseDate?: string | null; // ISO Date string
   annualInsuranceCost?: number;
   annualPatentCost?: number;
+  usefulLifeYears?: number;
+  resaleValue?: number;
 };
 
 export type FuelLog = {

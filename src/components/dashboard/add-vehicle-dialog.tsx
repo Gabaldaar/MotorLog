@@ -6,8 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Loader2, Car } from 'lucide-react';
-import { format } from 'date-fns';
+import { Plus, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -53,6 +52,8 @@ const formSchema = z.object({
   purchaseDate: z.string().optional(),
   annualInsuranceCost: z.coerce.number().optional(),
   annualPatentCost: z.coerce.number().optional(),
+  usefulLifeYears: z.coerce.number().optional(),
+  resaleValue: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -89,9 +90,11 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
       imageUrl: vehicle?.imageUrl || '',
       defaultFuelType: vehicle?.defaultFuelType,
       purchasePrice: vehicle?.purchasePrice,
-      purchaseDate: vehicle?.purchaseDate ? format(new Date(vehicle.purchaseDate), 'yyyy-MM-dd') : '',
+      purchaseDate: vehicle?.purchaseDate ? new Date(vehicle.purchaseDate).toISOString().split('T')[0] : '',
       annualInsuranceCost: vehicle?.annualInsuranceCost,
       annualPatentCost: vehicle?.annualPatentCost,
+      usefulLifeYears: vehicle?.usefulLifeYears,
+      resaleValue: vehicle?.resaleValue,
     },
   });
 
@@ -140,6 +143,8 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           purchaseDate: '',
           annualInsuranceCost: undefined,
           annualPatentCost: undefined,
+          usefulLifeYears: undefined,
+          resaleValue: undefined,
         });
     }
   }
@@ -294,6 +299,27 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                     </FormItem>
                   )}
                 />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="usefulLifeYears" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Vida Útil (años)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 10" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="resaleValue" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Valor de Reventa (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 5000" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
             </div>
 
              <div className="grid grid-cols-2 gap-4">
