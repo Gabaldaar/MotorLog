@@ -16,8 +16,9 @@ export type ExchangeRateOutput = z.infer<typeof ExchangeRateOutputSchema>;
 // This is the function we will call directly from our React component.
 export async function getDolarBlueRate(): Promise<ExchangeRateOutput> {
   try {
+    // IMPORTANT: This API always returns the CURRENT day's exchange rate. It does not support historical lookups.
     const response = await fetch('https://dolarapi.com/v1/dolares/blue', {
-      cache: 'no-store', // We always want the latest value
+      cache: 'no-store', // This is crucial to allow the server action to make external API calls in some Next.js environments.
     });
     if (!response.ok) {
       throw new Error(`Failed to fetch exchange rate. Status: ${response.status}`);
