@@ -130,16 +130,38 @@ export default function ReportsPage() {
     const from = startOfDay(dateRange.from);
     const to = endOfDay(dateRange.to);
 
-    const fuelLogs = processFuelLogs(allFuelLogsData).filter(log => {
-      const logDate = new Date(log.date);
-      return logDate >= from && logDate <= to;
+    const logsInPeriod = allFuelLogsData.filter(log => {
+        const logDate = new Date(log.date);
+        return logDate >= from && logDate <= to;
     });
 
-    const services = allServicesData.filter(service => {
-      if (!service.isCompleted || !service.completedDate) return false;
-      const serviceDate = new Date(service.completedDate);
-      return serviceDate >= from && serviceDate <= to;
+    const servicesInPeriod = allServicesData.filter(service => {
+        if (!service.isCompleted || !service.completedDate) return false;
+        const serviceDate = new Date(service.completedDate);
+        return serviceDate >= from && serviceDate <= to;
     });
+    
+    // Fallback logic for missing exchange rates
+    const validRates = [...logsInPeriod, ...servicesInPeriod]
+        .map(item => item.exchangeRate)
+        .filter((rate): rate is number => typeof rate === 'number' && rate > 0);
+    
+    const avgExchangeRate = validRates.length > 0 ? validRates.reduce((sum, rate) => sum + rate, 0) / validRates.length : 0;
+
+    const fuelLogs = processFuelLogs(logsInPeriod).map(log => {
+        if (log.totalCostUsd === undefined && avgExchangeRate > 0) {
+            return { ...log, totalCostUsd: log.totalCost / avgExchangeRate };
+        }
+        return log;
+    });
+
+    const services = servicesInPeriod.map(service => {
+        if (service.costUsd === undefined && avgExchangeRate > 0 && service.cost) {
+            return { ...service, costUsd: service.cost / avgExchangeRate };
+        }
+        return service;
+    });
+
 
     // --- Fixed Costs & Amortization Calculation ---
     const periodDays = Math.max(differenceInDays(to, from) + 1, 1);

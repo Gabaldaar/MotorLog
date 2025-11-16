@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { CalendarIcon, Loader2, Plus, Wrench, Repeat } from 'lucide-react';
+import { CalendarIcon, Loader2, Plus, Wrench, Repeat, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -40,6 +40,8 @@ import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-b
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { DialogTrigger } from '../ui/dialog';
+import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+
 
 const formSchema = z.object({
   serviceType: z.string().min(1, 'El tipo de servicio es obligatorio.'),
@@ -89,6 +91,7 @@ interface AddServiceReminderDialogProps {
 export default function AddServiceReminderDialog({ vehicleId, reminder, children, lastOdometer }: AddServiceReminderDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
   const { toast } = useToast();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -229,6 +232,27 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       form.reset();
     }
   }
+
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rate = await getDolarBlueRate();
+        setValue('exchangeRate', rate.compra.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `Dólar Blue (Compra): ${rate.compra}`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: error.message,
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -450,9 +474,15 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Tipo de Cambio (Opcional)</FormLabel>
-                            <FormControl>
-                            <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
-                            </FormControl>
+                            <div className="flex items-center gap-2">
+                                <FormControl>
+                                <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <Button type="button" variant="outline" size="icon" onClick={handleFetchRate} disabled={isFetchingRate}>
+                                    {isFetchingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                    <span className="sr-only">Obtener cotización actual</span>
+                                </Button>
+                            </div>
                             <FormDescription>
                                 Ingresa el tipo de cambio a dólar para este gasto.
                             </FormDescription>

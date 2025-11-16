@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { CalendarIcon, Plus, Loader2, Search, Check, ChevronsUpDown } from 'lucide-react';
+import { CalendarIcon, Plus, Loader2, Search, Check, ChevronsUpDown, Wand2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -47,6 +47,7 @@ import type { FuelLog, User, Vehicle, ConfigItem } from '@/lib/types';
 import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Separator } from '../ui/separator';
+import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
 
 
 const formSchema = z.object({
@@ -84,6 +85,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const { toast } = useToast();
   const [lastEdited, setLastEdited] = useState<LastEditedField>(null);
   const [popoverOpen, setPopoverOpen] = useState(false)
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
 
 
   const { user: authUser } = useUser();
@@ -244,6 +246,26 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const handleNearbyGasStationSelect = (name: string) => {
     setValue('gasStation', name, { shouldValidate: true });
   }
+
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rate = await getDolarBlueRate();
+        setValue('exchangeRate', rate.compra.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `Dólar Blue (Compra): ${rate.compra}`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: error.message,
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -499,9 +521,15 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                         render={({ field }) => (
                         <FormItem>
                             <FormLabel>Tipo de Cambio (Opcional)</FormLabel>
-                            <FormControl>
-                            <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
-                            </FormControl>
+                             <div className="flex items-center gap-2">
+                                <FormControl>
+                                <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <Button type="button" variant="outline" size="icon" onClick={handleFetchRate} disabled={isFetchingRate}>
+                                    {isFetchingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                    <span className="sr-only">Obtener cotización actual</span>
+                                </Button>
+                            </div>
                             <FormDescription>
                                 Ingresa el tipo de cambio a dólar del día del gasto para un cálculo preciso del costo real.
                             </FormDescription>
