@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { collection, query, orderBy } from 'firebase/firestore';
 import type { ProcessedFuelLog, ServiceReminder, Vehicle } from '@/lib/types';
 import { DateRange } from 'react-day-picker';
-import { subDays, startOfDay, endOfDay, differenceInDays, getYear, getMonth } from 'date-fns';
+import { subDays, startOfDay, endOfDay, differenceInDays, getYear, getMonth, differenceInCalendarYears } from 'date-fns';
 import { DateRangePicker } from '@/components/reports/date-range-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Car, Fuel, Wrench, Gauge, Calendar, DollarSign, Route, TrendingUp, Droplets, AlertTriangle, TrendingDown } from 'lucide-react';
@@ -123,41 +122,45 @@ export default function ReportsPage() {
 
 
   const reportData = useMemo(() => {
-    if (!vehicle || !allFuelLogsData || !allServicesData || !dateRange?.from || !dateRange?.to) {
+    if (!vehicle || !allFuelLogsData || !allServicesData) {
       return null;
     }
 
     // --- GLOBAL CALCULATIONS FOR REAL COST PER KM ---
-    let totalRealCostUSD = 0;
-    let totalKmTraveled = 0;
     let globalRealCostPerKmUSD = 0;
     
     if (allFuelLogsData.length > 1) {
-      const firstEverLog = allFuelLogsData[0];
-      const lastEverLog = allFuelLogsData[allFuelLogsData.length - 1];
-      totalKmTraveled = lastEverLog.odometer - firstEverLog.odometer;
+        const firstEverLog = allFuelLogsData[0];
+        const lastEverLog = allFuelLogsData[allFuelLogsData.length - 1];
+        const totalKmTraveled = lastEverLog.odometer - firstEverLog.odometer;
 
-      const totalFuelCostUSD = allFuelLogsData.reduce((acc, log) => acc + (log.totalCostUsd || 0), 0);
-      const totalServiceCostUSD = allServicesData.reduce((acc, service) => acc + (service.costUsd || 0), 0);
-      const totalOperativeCostUSD_Global = totalFuelCostUSD + totalServiceCostUSD;
+        // Operative Cost
+        const totalFuelCostUSD = allFuelLogsData.reduce((acc, log) => acc + (log.totalCostUsd || 0), 0);
+        const totalServiceCostUSD = allServicesData.reduce((acc, service) => acc + (service.costUsd || 0), 0);
+        const totalOperativeCostUSD = totalFuelCostUSD + totalServiceCostUSD;
+        const operativeCostPerKmUSD = totalKmTraveled > 0 ? totalOperativeCostUSD / totalKmTraveled : 0;
+        
+        // Fixed Cost
+        const annualFixedCost = (vehicle.annualInsuranceCost || 0) + (vehicle.annualPatentCost || 0);
+        const depreciation = vehicle.purchasePrice && vehicle.usefulLifeYears ? (vehicle.purchasePrice - (vehicle.resaleValue || 0)) / vehicle.usefulLifeYears : 0;
+        const totalAnnualFixedCost = annualFixedCost + depreciation;
+        
+        const yearsSincePurchase = vehicle.purchaseDate ? differenceInCalendarYears(new Date(), new Date(vehicle.purchaseDate)) : 0;
+        const totalKmInHistory = allFuelLogsData.length > 1 ? allFuelLogsData[allFuelLogsData.length - 1].odometer - allFuelLogsData[0].odometer : 0;
+        const kmPerYearEstimate = yearsSincePurchase > 0 ? totalKmInHistory / yearsSincePurchase : 15000; // Default 15k km/year
 
-      let totalFixedCostUSD_Global = 0;
-      if (vehicle.purchaseDate) {
-          const daysSincePurchase = differenceInDays(new Date(), new Date(vehicle.purchaseDate));
-          const dailyDepreciation = vehicle.purchasePrice && vehicle.usefulLifeYears ? (vehicle.purchasePrice - (vehicle.resaleValue || 0)) / (vehicle.usefulLifeYears * 365) : 0;
-          const dailyInsurance = (vehicle.annualInsuranceCost || 0) / 365;
-          const dailyPatent = (vehicle.annualPatentCost || 0) / 365;
-          const dailyFixedCost = dailyDepreciation + dailyInsurance + dailyPatent;
-          totalFixedCostUSD_Global = dailyFixedCost * daysSincePurchase;
-      }
+        const fixedCostPerKm = kmPerYearEstimate > 0 ? totalAnnualFixedCost / kmPerYearEstimate : 0;
 
-      totalRealCostUSD = totalOperativeCostUSD_Global + totalFixedCostUSD_Global;
-      globalRealCostPerKmUSD = totalKmTraveled > 0 ? totalRealCostUSD / totalKmTraveled : 0;
+        globalRealCostPerKmUSD = operativeCostPerKmUSD + fixedCostPerKm;
     }
     // --- END GLOBAL CALCULATIONS ---
 
 
     // --- PERIOD-SPECIFIC CALCULATIONS ---
+     if (!dateRange?.from || !dateRange?.to) {
+        return { empty: true, realCostPerKmUSD: globalRealCostPerKmUSD };
+     }
+
     const from = startOfDay(dateRange.from);
     const to = endOfDay(dateRange.to);
 
