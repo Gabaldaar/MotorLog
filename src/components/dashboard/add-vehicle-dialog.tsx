@@ -1,11 +1,14 @@
 
+
 'use client';
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Plus, Loader2, Car } from 'lucide-react';
+import { Plus, Loader2, Car, CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +23,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -32,6 +36,10 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebas
 import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Calendar } from '../ui/calendar';
+import { cn } from '@/lib/utils';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
   make: z.string().min(1, 'La marca es obligatoria.'),
@@ -44,6 +52,11 @@ const formSchema = z.object({
   defaultFuelType: z.string({
     required_error: 'El tipo de combustible es obligatorio.',
   }),
+  // Financial fields
+  purchasePrice: z.coerce.number().optional(),
+  purchaseDate: z.date().optional(),
+  annualInsuranceCost: z.coerce.number().optional(),
+  annualPatentCost: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -79,6 +92,10 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
       averageConsumptionKmPerLiter: vehicle?.averageConsumptionKmPerLiter,
       imageUrl: vehicle?.imageUrl || '',
       defaultFuelType: vehicle?.defaultFuelType,
+      purchasePrice: vehicle?.purchasePrice,
+      purchaseDate: vehicle?.purchaseDate ? new Date(vehicle.purchaseDate) : undefined,
+      annualInsuranceCost: vehicle?.annualInsuranceCost,
+      annualPatentCost: vehicle?.annualPatentCost,
     },
   });
 
@@ -94,13 +111,12 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     setIsSubmitting(true);
     
     const vehicleId = isEditing ? vehicle.id : doc(collection(firestore, '_')).id;
-    // Save to the top-level 'vehicles' collection
     const vehicleRef = doc(firestore, 'vehicles', vehicleId);
     
     const vehicleData = {
         ...values,
         id: vehicleId,
-        // No longer storing userId, as it's a shared resource
+        purchaseDate: values.purchaseDate ? values.purchaseDate.toISOString() : undefined,
         imageUrl: values.imageUrl || `https://picsum.photos/seed/${vehicleId}/600/400`,
         imageHint: `${values.make.toLowerCase()} ${values.model.toLowerCase()}`,
     };
@@ -124,6 +140,10 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           averageConsumptionKmPerLiter: undefined,
           imageUrl: '',
           defaultFuelType: undefined,
+          purchasePrice: undefined,
+          purchaseDate: undefined,
+          annualInsuranceCost: undefined,
+          annualPatentCost: undefined,
         });
     }
   }
@@ -138,7 +158,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
             </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-headline">{isEditing ? 'Gestionar' : 'Añadir'} Vehículo</DialogTitle>
           <DialogDescription>
@@ -146,7 +166,8 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+            <p className="text-sm font-medium">Información Básica</p>
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="make" render={({ field }) => (
                     <FormItem>
@@ -246,8 +267,70 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                 </FormItem>
               )}
             />
+            
+            <Separator className="my-6"/>
+            
+            <p className="text-sm font-medium">Información Financiera (Opcional)</p>
+            <FormDescription>
+                Estos datos se usan para calcular la amortización y el costo real por km.
+            </FormDescription>
+
+            <div className="grid grid-cols-2 gap-4">
+               <FormField control={form.control} name="purchasePrice" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Precio de Compra (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 25000" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="purchaseDate" render={({ field }) => (
+                    <FormItem className="flex flex-col pt-2">
+                        <FormLabel>Fecha de Compra</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                variant={"outline"}
+                                className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                                >
+                                {field.value ? (format(field.value, "PPP", { locale: es })) : (<span>Elige una fecha</span>)}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                            </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+             <div className="grid grid-cols-2 gap-4">
+               <FormField control={form.control} name="annualInsuranceCost" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Costo Anual Seguro (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 1200" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="annualPatentCost" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Costo Anual Patente (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 800" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
            
-            <DialogFooter>
+            <DialogFooter className="pt-4 mt-6 border-t">
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? 'Guardar Cambios' : 'Añadir Vehículo'}
@@ -259,3 +342,5 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
     </Dialog>
   );
 }
+
+    

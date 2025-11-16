@@ -1,5 +1,6 @@
 
 
+
 export type Vehicle = {
   id: string;
   make: string;
@@ -11,6 +12,11 @@ export type Vehicle = {
   imageUrl: string;
   imageHint?: string;
   defaultFuelType?: string;
+  // Financial data for amortization
+  purchasePrice?: number;
+  purchaseDate?: string; // ISO Date string
+  annualInsuranceCost?: number;
+  annualPatentCost?: number;
 };
 
 export type FuelLog = {
@@ -101,5 +107,7 @@ export type TimelineItem = {
   data: ProcessedFuelLog | ProcessedServiceReminder | Trip;
 };
 
+
+    
 
     

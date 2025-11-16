@@ -56,6 +56,23 @@
         "fuelCapacity": {
           "type": "number",
           "description": "Vehicle's fuel tank capacity in liters."
+        },
+        "purchasePrice": {
+          "type": "number",
+          "description": "Original purchase price of the vehicle."
+        },
+        "purchaseDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the vehicle was purchased."
+        },
+        "annualInsuranceCost": {
+          "type": "number",
+          "description": "Annual cost of the vehicle's insurance."
+        },
+        "annualPatentCost": {
+          "type": "number",
+          "description": "Annual cost of the vehicle's patent/registration tax."
         }
       },
       "required": [
