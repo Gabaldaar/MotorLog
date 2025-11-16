@@ -55,6 +55,7 @@ const formSchema = z.object({
   completedOdometer: z.coerce.number().optional(),
   serviceLocation: z.string().optional(),
   cost: z.string().optional(),
+  exchangeRate: z.string().optional(),
 }).refine(data => data.isCompleted || data.dueDate || data.dueOdometer, {
   message: "Debes especificar al menos una fecha o un odómetro para el recordatorio.",
   path: ["dueDate"], 
@@ -125,6 +126,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
         completedOdometer: reminder?.completedOdometer || lastOdometer || undefined,
         serviceLocation: reminder?.serviceLocation || '',
         cost: reminder?.cost ? toLocaleString(reminder.cost) : '',
+        exchangeRate: reminder?.exchangeRate ? toLocaleString(reminder.exchangeRate) : '',
       });
     }
   }, [open, reminder, reset, lastOdometer]);
@@ -158,7 +160,11 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
     
     const dateForTimeline = values.completedDate ? values.completedDate.toISOString() : (values.dueDate ? values.dueDate.toISOString() : new Date().toISOString());
 
-    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate' | 'cost'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; date: string; cost: number | null } = {
+    const costNum = values.isCompleted ? parseCurrency(values.cost || '0') : null;
+    const exchangeRateNum = (values.isCompleted && values.exchangeRate) ? parseCurrency(values.exchangeRate) : null;
+    const costUsd = (costNum !== null && exchangeRateNum && exchangeRateNum > 0) ? costNum / exchangeRateNum : null;
+
+    const reminderData: Omit<ServiceReminder, 'dueDate' | 'completedDate' | 'cost' | 'costUsd' | 'exchangeRate'> & { dueDate: string | null; completedDate: string | null; dueOdometer: number | null; date: string; cost: number | null; costUsd: number | null, exchangeRate: number | null } = {
       id: reminderId,
       vehicleId,
       serviceType: values.serviceType,
@@ -169,7 +175,9 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
       recurrenceIntervalKm: values.isRecurring ? values.recurrenceIntervalKm : null,
       completedOdometer: values.isCompleted ? values.completedOdometer : null,
       serviceLocation: values.isCompleted ? values.serviceLocation : null,
-      cost: values.isCompleted ? parseCurrency(values.cost || '0') : null,
+      cost: costNum,
+      costUsd: costUsd,
+      exchangeRate: exchangeRateNum,
       dueDate: values.dueDate ? values.dueDate.toISOString() : null,
       completedDate: (values.isCompleted && values.completedDate) ? values.completedDate.toISOString() : null,
       date: dateForTimeline
@@ -194,6 +202,8 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
             completedDate: null,
             completedOdometer: null,
             cost: null,
+            costUsd: null,
+            exchangeRate: null,
             serviceLocation: null,
             dueDate: null, // Reset due date for next one, it's odometer based
             dueOdometer: values.completedOdometer + values.recurrenceIntervalKm,
@@ -413,7 +423,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                         name="cost"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Costo del Servicio (Opcional)</FormLabel>
+                            <FormLabel>Costo del Servicio (ARS)</FormLabel>
                             <FormControl>
                               <Input type="text" placeholder="$" {...field} value={field.value ?? ''}/>
                             </FormControl>
@@ -434,6 +444,22 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="exchangeRate"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Tipo de Cambio (Opcional)</FormLabel>
+                            <FormControl>
+                            <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormDescription>
+                                Ingresa el tipo de cambio a dólar para este gasto.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                     </div>
                   )}
               </div>

@@ -2,6 +2,7 @@
 
 
 
+
 export type Vehicle = {
   id: string;
   make: string;
@@ -30,6 +31,8 @@ export type FuelLog = {
   fuelType: string;
   pricePerLiter: number;
   totalCost: number;
+  totalCostUsd?: number;
+  exchangeRate?: number;
   liters: number;
   gasStation: string;
   isFillUp: boolean;
@@ -48,6 +51,8 @@ export type ServiceReminder = {
   completedOdometer: number | null;
   serviceLocation: string | null;
   cost: number | null;
+  costUsd?: number | null;
+  exchangeRate?: number | null;
   isRecurring?: boolean | null;
   recurrenceIntervalKm?: number | null;
   date: string; // Unified date for timeline

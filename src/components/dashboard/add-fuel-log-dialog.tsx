@@ -46,6 +46,7 @@ import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import type { FuelLog, User, Vehicle, ConfigItem } from '@/lib/types';
 import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Separator } from '../ui/separator';
 
 
 const formSchema = z.object({
@@ -62,6 +63,7 @@ const formSchema = z.object({
   isFillUp: z.boolean().default(true),
   gasStation: z.string().optional(),
   missedPreviousFillUp: z.boolean().default(false),
+  exchangeRate: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -121,6 +123,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
       isFillUp: true,
       gasStation: '',
       missedPreviousFillUp: false,
+      exchangeRate: '',
     },
   });
 
@@ -141,6 +144,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
         isFillUp: fuelLog?.isFillUp !== undefined ? fuelLog.isFillUp : true,
         gasStation: fuelLog?.gasStation || '',
         missedPreviousFillUp: fuelLog?.missedPreviousFillUp || false,
+        exchangeRate: toLocaleString(fuelLog?.exchangeRate),
         };
         form.reset(defaultVals);
     }
@@ -203,6 +207,10 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     const logId = isEditing ? fuelLog!.id! : doc(collection(firestore, '_')).id;
     const fuelLogRef = doc(firestore, 'vehicles', vehicleId, 'fuel_records', logId);
 
+    const totalCostNum = parseCurrency(values.totalCost);
+    const exchangeRateNum = values.exchangeRate ? parseCurrency(values.exchangeRate) : 0;
+    const totalCostUsd = exchangeRateNum > 0 ? totalCostNum / exchangeRateNum : undefined;
+
     const fuelLogData = {
         ...values,
         id: logId,
@@ -211,9 +219,11 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
         userId: authUser.uid,
         username: userProfile.username || authUser.email || 'Usuario',
         gasStation: values.gasStation || '',
-        totalCost: parseCurrency(values.totalCost),
+        totalCost: totalCostNum,
         liters: parseCurrency(values.liters),
         pricePerLiter: parseCurrency(values.pricePerLiter),
+        exchangeRate: exchangeRateNum > 0 ? exchangeRateNum : undefined,
+        totalCostUsd: totalCostUsd,
     };
 
     setDocumentNonBlocking(fuelLogRef, fuelLogData, { merge: true });
@@ -254,232 +264,255 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <FormField
-                control={form.control}
-                name="odometer"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Odómetro (km)</FormLabel>
-                    <FormControl>
-                        <Input type="number" placeholder="e.g., 25142" {...field} value={field.value ?? ''} />
-                    </FormControl>
-                    {lastLog && <FormDescription>Último: {lastLog.odometer} km</FormDescription>}
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                    <FormItem className="flex flex-col pt-2">
-                        <FormLabel>Fecha</FormLabel>
-                        <Popover>
-                            <PopoverTrigger asChild>
+             <div className="max-h-[65vh] overflow-y-auto pr-4 pl-1 -mr-4 -ml-1">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                        control={form.control}
+                        name="odometer"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Odómetro (km)</FormLabel>
                             <FormControl>
-                                <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                )}
-                                >
-                                {field.value ? (
-                                    format(field.value, "PPP", { locale: es })
-                                ) : (
-                                    <span>Elige una fecha</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
+                                <Input type="number" placeholder="e.g., 25142" {...field} value={field.value ?? ''} />
                             </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) =>
-                                date > new Date() || date < new Date("1900-01-01")
-                                }
-                                initialFocus
-                            />
-                            </PopoverContent>
-                        </Popover>
-                         {lastLog && <FormDescription>Última: {formatDate(lastLog.date)}</FormDescription>}
-                        <FormMessage />
-                    </FormItem>
-                )}
-                />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <FormField
-                control={form.control}
-                name="totalCost"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Costo Total</FormLabel>
-                    <FormControl>
-                      <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="pricePerLiter"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>$/Litro</FormLabel>
-                    <FormControl>
-                      <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="liters"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Litros</FormLabel>
-                    <FormControl>
-                      <Input type="text" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-                 <FormField
-                control={form.control}
-                name="fuelType"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Tipo de Combustible</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                        <FormControl>
-                        <SelectTrigger disabled={isLoadingFuelTypes}>
-                            <SelectValue placeholder={isLoadingFuelTypes ? "Cargando..." : "Selecciona un tipo"} />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {fuelTypes?.map(fuelType => (
-                            <SelectItem key={fuelType.id} value={fuelType.name}>{fuelType.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={form.control}
-                name="gasStation"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gasolinera</FormLabel>
-                     <div className="flex flex-wrap items-center gap-2">
-                        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className={cn("w-full justify-between flex-1 min-w-[150px]", !field.value && "text-muted-foreground")}
-                              >
-                                {field.value || (isLoadingGasStations ? "Cargando..." : "Seleccionar o escribir")}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                            <Command>
-                              <CommandInput 
-                                placeholder="Buscar o crear gasolinera..." 
-                                onValueChange={(value) => field.onChange(value)}
-                              />
-                              <CommandList>
-                                <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
-                                <CommandGroup>
-                                  {gasStations?.map((station) => (
-                                    <CommandItem
-                                      value={station.name}
-                                      key={station.id}
-                                      onSelect={() => {
-                                        handleGasStationSelect(station.name);
-                                      }}
-                                    >
-                                      <Check className={cn("mr-2 h-4 w-4", station.name === field.value ? "opacity-100" : "opacity-0")} />
-                                      {station.name}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                        <FindNearbyGasStationsDialog onStationSelect={handleNearbyGasStationSelect}>
-                            <Button type="button" variant="outline" size="icon" className="shrink-0">
-                                <Search className="h-4 w-4" />
-                                <span className="sr-only">Buscar gasolineras cercanas</span>
-                            </Button>
-                        </FindNearbyGasStationsDialog>
+                            {lastLog && <FormDescription>Último: {lastLog.odometer} km</FormDescription>}
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="date"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-col pt-2">
+                                <FormLabel>Fecha</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                        >
+                                        {field.value ? (
+                                            format(field.value, "PPP", { locale: es })
+                                        ) : (
+                                            <span>Elige una fecha</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={field.value}
+                                        onSelect={field.onChange}
+                                        disabled={(date) =>
+                                        date > new Date() || date < new Date("1900-01-01")
+                                        }
+                                        initialFocus
+                                    />
+                                    </PopoverContent>
+                                </Popover>
+                                {lastLog && <FormDescription>Última: {formatDate(lastLog.date)}</FormDescription>}
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                     </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-                />
+
+                    <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                        control={form.control}
+                        name="totalCost"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Costo Total (ARS)</FormLabel>
+                            <FormControl>
+                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="pricePerLiter"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>$/Litro (ARS)</FormLabel>
+                            <FormControl>
+                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="liters"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Litros</FormLabel>
+                            <FormControl>
+                            <Input type="text" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                        control={form.control}
+                        name="fuelType"
+                        render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Tipo de Combustible</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                <FormControl>
+                                <SelectTrigger disabled={isLoadingFuelTypes}>
+                                    <SelectValue placeholder={isLoadingFuelTypes ? "Cargando..." : "Selecciona un tipo"} />
+                                </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                {fuelTypes?.map(fuelType => (
+                                    <SelectItem key={fuelType.id} value={fuelType.name}>{fuelType.name}</SelectItem>
+                                ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                            </FormItem>
+                        )}
+                        />
+                        <FormField
+                        control={form.control}
+                        name="gasStation"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Gasolinera</FormLabel>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn("w-full justify-between flex-1 min-w-[150px]", !field.value && "text-muted-foreground")}
+                                    >
+                                        {field.value || (isLoadingGasStations ? "Cargando..." : "Seleccionar o escribir")}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                    <CommandInput 
+                                        placeholder="Buscar o crear gasolinera..." 
+                                        onValueChange={(value) => field.onChange(value)}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>No se encontró. Puedes crearla.</CommandEmpty>
+                                        <CommandGroup>
+                                        {gasStations?.map((station) => (
+                                            <CommandItem
+                                            value={station.name}
+                                            key={station.id}
+                                            onSelect={() => {
+                                                handleGasStationSelect(station.name);
+                                            }}
+                                            >
+                                            <Check className={cn("mr-2 h-4 w-4", station.name === field.value ? "opacity-100" : "opacity-0")} />
+                                            {station.name}
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                                <FindNearbyGasStationsDialog onStationSelect={handleNearbyGasStationSelect}>
+                                    <Button type="button" variant="outline" size="icon" className="shrink-0">
+                                        <Search className="h-4 w-4" />
+                                        <span className="sr-only">Buscar gasolineras cercanas</span>
+                                    </Button>
+                                </FindNearbyGasStationsDialog>
+                            </div>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                        />
+                    </div>
+
+                    <FormField
+                    control={form.control}
+                    name="isFillUp"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                            <FormLabel>¿Llenado completo?</FormLabel>
+                            <FormDescription>
+                            Marca esto si llenaste el tanque.
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
+
+                    <FormField
+                    control={form.control}
+                    name="missedPreviousFillUp"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                            <FormLabel>¿Omitiste una recarga anterior?</FormLabel>
+                            <FormDescription>
+                            Esto invalidará el cálculo de consumo para este registro.
+                            </FormDescription>
+                        </div>
+                        <FormControl>
+                            <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            />
+                        </FormControl>
+                        </FormItem>
+                    )}
+                    />
+
+                    <Separator />
+
+                    <FormField
+                        control={form.control}
+                        name="exchangeRate"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Tipo de Cambio (Opcional)</FormLabel>
+                            <FormControl>
+                            <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                            </FormControl>
+                            <FormDescription>
+                                Ingresa el tipo de cambio a dólar del día del gasto para un cálculo preciso del costo real.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                </div>
             </div>
-
-            <FormField
-              control={form.control}
-              name="isFillUp"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>¿Llenado completo?</FormLabel>
-                    <FormDescription>
-                      Marca esto si llenaste el tanque.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="missedPreviousFillUp"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                  <div className="space-y-0.5">
-                    <FormLabel>¿Omitiste una recarga anterior?</FormLabel>
-                    <FormDescription>
-                      Esto invalidará el cálculo de consumo para este registro.
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
            
-            <DialogFooter>
+            <DialogFooter className="pt-4 border-t">
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {isEditing ? 'Guardar Cambios' : 'Guardar Registro'}
