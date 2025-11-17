@@ -60,6 +60,7 @@ interface TripCalculatorDialogProps {
 export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalculatorDialogProps) {
   const [open, setOpen] = useState(false);
   const [isFetchingRate, setIsFetchingRate] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [exchangeRate, setExchangeRate] = useState<number | null>(null);
   const [calculationResult, setCalculationResult] = useState<CalculationResult | null>(null);
   const { toast } = useToast();
@@ -80,9 +81,11 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
 
   const handleFetchRate = async () => {
     setIsFetchingRate(true);
+    let rateValue = null;
     try {
         const rate = await getDolarBlueRate();
-        setExchangeRate(rate.average);
+        rateValue = rate.average;
+        setExchangeRate(rateValue);
         toast({
             title: 'Cotización Obtenida',
             description: `1 USD = ${formatCurrency(rate.average)} ARS`,
@@ -96,19 +99,27 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
     } finally {
         setIsFetchingRate(false);
     }
+    return rateValue;
   };
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
+    setIsCalculating(true);
     if (!vehicle) {
         toast({ variant: 'destructive', title: 'Error', description: 'No hay un vehículo seleccionado.'});
+        setIsCalculating(false);
         return;
+    }
+    
+    let currentExchangeRate = exchangeRate;
+    if (currentExchangeRate === null || currentExchangeRate <= 0) {
+        currentExchangeRate = await handleFetchRate();
     }
 
     const fallbackConsumption = vehicle.averageConsumptionKmPerLiter > 0 ? vehicle.averageConsumptionKmPerLiter : 1;
     const lastPricePerLiter = lastFuelLog?.pricePerLiter || 0;
 
     const costsPerKm = calculateCostsPerKm(vehicle, fallbackConsumption, lastPricePerLiter);
-    const totalVehicleCostPerKm_ARS = exchangeRate ? calculateTotalCostInARS(costsPerKm, exchangeRate) : null;
+    const totalVehicleCostPerKm_ARS = currentExchangeRate ? calculateTotalCostInARS(costsPerKm, currentExchangeRate) : null;
     
     const otherExpensesNum = parseCurrency(values.otherExpenses || '0');
 
@@ -127,6 +138,7 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
         finalTotalCost,
         kmTraveled: values.kilometers,
     });
+    setIsCalculating(false);
   }
 
   return (
@@ -198,8 +210,9 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
 
                 <DialogFooter className="pt-4 border-t !mt-6 !flex-row !justify-between">
                     <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cerrar</Button>
-                    <Button type="submit">
-                        <Calculator className="mr-2 h-4 w-4" /> Calcular
+                    <Button type="submit" disabled={isCalculating}>
+                        {isCalculating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Calculator className="mr-2 h-4 w-4" />}
+                        Calcular
                     </Button>
                 </DialogFooter>
             </form>
