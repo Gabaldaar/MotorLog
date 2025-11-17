@@ -54,6 +54,12 @@ const formSchema = z.object({
   annualPatentCost: z.coerce.number().optional(),
   usefulLifeYears: z.coerce.number().optional(),
   resaleValue: z.coerce.number().optional(),
+  // New detailed cost fields
+  kmPerYear: z.coerce.number().optional(),
+  maintenanceCost: z.coerce.number().optional(),
+  maintenanceKm: z.coerce.number().optional(),
+  tiresCost: z.coerce.number().optional(),
+  tiresKm: z.coerce.number().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -95,6 +101,11 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
       annualPatentCost: vehicle?.annualPatentCost,
       usefulLifeYears: vehicle?.usefulLifeYears,
       resaleValue: vehicle?.resaleValue,
+      kmPerYear: vehicle?.kmPerYear,
+      maintenanceCost: vehicle?.maintenanceCost,
+      maintenanceKm: vehicle?.maintenanceKm,
+      tiresCost: vehicle?.tiresCost,
+      tiresKm: vehicle?.tiresKm,
     },
   });
 
@@ -145,6 +156,11 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
           annualPatentCost: undefined,
           usefulLifeYears: undefined,
           resaleValue: undefined,
+          kmPerYear: undefined,
+          maintenanceCost: undefined,
+          maintenanceKm: undefined,
+          tiresCost: undefined,
+          tiresKm: undefined,
         });
     }
   }
@@ -271,7 +287,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
             
             <Separator className="my-6"/>
             
-            <p className="text-sm font-medium">Información Financiera (Opcional)</p>
+            <p className="text-sm font-medium">Datos para Cálculo de Costo Real (Opcional)</p>
             <FormDescription>
                 Estos datos se usan para calcular la amortización y el costo real por km.
             </FormDescription>
@@ -304,7 +320,7 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="usefulLifeYears" render={({ field }) => (
                     <FormItem>
-                        <FormLabel>Vida Útil (años)</FormLabel>
+                        <FormLabel>Años de Amortización</FormLabel>
                         <FormControl>
                             <Input type="number" placeholder="e.g., 10" {...field} value={field.value ?? ''} />
                         </FormControl>
@@ -322,8 +338,8 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                 )} />
             </div>
 
-             <div className="grid grid-cols-2 gap-4">
-               <FormField control={form.control} name="annualInsuranceCost" render={({ field }) => (
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="annualInsuranceCost" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Costo Anual Seguro (USD)</FormLabel>
                         <FormControl>
@@ -337,6 +353,64 @@ export default function AddVehicleDialog({ vehicle, children }: AddVehicleDialog
                         <FormLabel>Costo Anual Patente (USD)</FormLabel>
                         <FormControl>
                             <Input type="number" placeholder="e.g., 800" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                 <FormField control={form.control} name="kmPerYear" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Km / Año (Estimado)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 15000" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <Separator className="my-4"/>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="maintenanceCost" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Costo Mantenimiento (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 300" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormDescription className="text-xs">Costo de un servicio mayor (aceite, filtros, etc.).</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="maintenanceKm" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Km entre Mantenimientos</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 10000" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="tiresCost" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Costo Neumáticos (USD)</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 800" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormDescription className="text-xs">Costo de un juego completo.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
+                )} />
+                <FormField control={form.control} name="tiresKm" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Km Vida Útil Neumáticos</FormLabel>
+                        <FormControl>
+                            <Input type="number" placeholder="e.g., 50000" {...field} value={field.value ?? ''} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>

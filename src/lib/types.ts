@@ -17,6 +17,12 @@ export type Vehicle = {
   annualPatentCost?: number;
   usefulLifeYears?: number;
   resaleValue?: number;
+  // New detailed cost fields
+  kmPerYear?: number; // KA
+  maintenanceCost?: number; // SM
+  maintenanceKm?: number; // KSM
+  tiresCost?: number; // N
+  tiresKm?: number; // KN
 };
 
 export type FuelLog = {
