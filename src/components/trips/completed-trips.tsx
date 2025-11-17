@@ -22,7 +22,6 @@ interface TripDetailsProps {
 }
 
 function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
-    const { getFormattedConsumption, consumptionUnit } = usePreferences();
     const { toast } = useToast();
     const [exchangeRate, setExchangeRate] = useState<number | null>(null);
     const [isFetchingRate, setIsFetchingRate] = useState(false);
@@ -52,7 +51,6 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         }
     };
 
-
     const tripCalculations = useMemo(() => {
         const fallbackConsumption = vehicle.averageConsumptionKmPerLiter > 0 ? vehicle.averageConsumptionKmPerLiter : 1;
         const lastPricePerLiter = lastFuelLog?.pricePerLiter || 0;
@@ -61,58 +59,15 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         const totalCostPerKmInARS = exchangeRate ? calculateTotalCostInARS(costsPerKm, exchangeRate) : null;
         const fuelCostPerKmInARS = costsPerKm.fuelCostPerKm;
 
-
         if (!trip.endOdometer || !trip.startOdometer) {
-            return { kmTraveled: 0, fuelConsumed: 0, fuelCost: 0, avgConsumptionForTrip: 0, costPerKm: 0, duration: "N/A", otherExpenses: 0, totalCost: 0, realTotalCost: null, realFuelCost: null };
+            return { kmTraveled: 0, duration: "N/A", otherExpenses: 0, realTotalCost: null, realFuelCost: null };
         }
         const kmTraveled = trip.endOdometer - trip.startOdometer;
         if (kmTraveled <= 0) {
-            return { kmTraveled: 0, fuelConsumed: 0, fuelCost: 0, avgConsumptionForTrip: 0, costPerKm: 0, duration: "N/A", otherExpenses: 0, totalCost: 0, realTotalCost: null, realFuelCost: null };
+            return { kmTraveled: 0, duration: "N/A", otherExpenses: 0, realTotalCost: null, realFuelCost: null };
         }
         
         const otherExpenses = (trip.expenses || []).reduce((acc, expense) => acc + expense.amount, 0);
-
-        const sortedLogs = [...allFuelLogs].sort((a, b) => a.odometer - b.odometer);
-        const logsInTrip = sortedLogs.filter(log => log.odometer > trip.startOdometer! && log.odometer < trip.endOdometer!);
-        const keyOdometerPoints = [trip.startOdometer, ...logsInTrip.map(l => l.odometer), trip.endOdometer];
-        
-        let totalFuel = 0;
-        let fuelCost = 0;
-
-        const historicAvgPrice = sortedLogs.length > 0 ? sortedLogs.reduce((acc, log) => acc + log.pricePerLiter, 0) / sortedLogs.length : 0;
-        
-        for (let i = 0; i < keyOdometerPoints.length - 1; i++) {
-            const segmentStartOdo = keyOdometerPoints[i];
-            const segmentEndOdo = keyOdometerPoints[i+1];
-            const segmentDistance = segmentEndOdo - segmentStartOdo;
-
-            if (segmentDistance <= 0) continue;
-
-            const segmentStartLog = logsInTrip.find(l => l.odometer === segmentStartOdo);
-            
-            if (segmentStartLog && segmentStartLog.isFillUp && !segmentStartLog.missedPreviousFillUp) {
-                const logIndex = sortedLogs.findIndex(l => l.id === segmentStartLog.id);
-                if (logIndex > 0) {
-                    const prevLog = sortedLogs[logIndex - 1];
-                    const distanceSinceLastFill = segmentStartLog.odometer - prevLog.odometer;
-                    if (distanceSinceLastFill > 0 && prevLog.isFillUp) {
-                        const realConsumption = distanceSinceLastFill / segmentStartLog.liters;
-                        if (realConsumption > 0) {
-                            totalFuel += segmentDistance / realConsumption;
-                            fuelCost += (segmentDistance / realConsumption) * segmentStartLog.pricePerLiter;
-                            continue;
-                        }
-                    }
-                }
-            }
-            
-            totalFuel += segmentDistance / fallbackConsumption;
-            fuelCost += (segmentDistance / fallbackConsumption) * historicAvgPrice;
-        }
-
-        const totalCost = fuelCost + otherExpenses;
-        const finalAvgConsumption = kmTraveled > 0 && totalFuel > 0 ? kmTraveled / totalFuel : 0;
-        const costPerKm = kmTraveled > 0 ? totalCost / kmTraveled : 0;
 
         let duration = "N/A";
         if (trip.endDate && trip.startDate) {
@@ -123,57 +78,24 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
 
         return {
             kmTraveled,
-            fuelConsumed: totalFuel,
-            fuelCost,
-            avgConsumptionForTrip: finalAvgConsumption,
-            costPerKm,
             duration,
             otherExpenses,
-            totalCost,
-            realTotalCost: totalCostPerKmInARS ? kmTraveled * totalCostPerKmInARS : null,
-            realFuelCost: kmTraveled * fuelCostPerKmInARS,
+            realTotalCost: totalCostPerKmInARS ? (kmTraveled * totalCostPerKmInARS) + otherExpenses : null,
+            realFuelCost: (kmTraveled * fuelCostPerKmInARS) + otherExpenses,
         }
-    }, [trip, allFuelLogs, vehicle.averageConsumptionKmPerLiter, exchangeRate, lastFuelLog]);
+    }, [trip, vehicle, allFuelLogs, exchangeRate, lastFuelLog]);
 
-    const { kmTraveled, fuelConsumed, fuelCost, avgConsumptionForTrip, costPerKm, duration, otherExpenses, totalCost, realTotalCost, realFuelCost } = tripCalculations;
+    const { kmTraveled, duration, otherExpenses, realTotalCost, realFuelCost } = tripCalculations;
     const lastOdometer = trip.endOdometer || 0;
 
     return (
         <div className="space-y-3 pt-4 border-t pl-12">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6 text-sm">
                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{formatCurrency(totalCost)}</p>
-                        <p className="text-xs text-muted-foreground">Costo de Viaje (Est.)</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <Droplets className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{fuelConsumed.toFixed(2)} L ({formatCurrency(fuelCost)})</p>
-                        <p className="text-xs text-muted-foreground">Combustible (Est.)</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <div>
                         <p className="font-medium">{trip.username}</p>
                         <p className="text-xs text-muted-foreground">Conductor</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <Route className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{getFormattedConsumption(avgConsumptionForTrip)}</p>
-                        <p className="text-xs text-muted-foreground">Consumo ({consumptionUnit})</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{formatCurrency(costPerKm)}</p>
-                        <p className="text-xs text-muted-foreground">Costo / Km (Est.)</p>
                     </div>
                 </div>
                  <div className="flex items-center gap-2">
@@ -183,6 +105,15 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                         <p className="text-xs text-muted-foreground">Duración</p>
                      </div>
                 </div>
+                {otherExpenses > 0 && (
+                    <div className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                            <p className="font-medium">{formatCurrency(otherExpenses)}</p>
+                            <p className="text-xs text-muted-foreground">Otros Gastos</p>
+                        </div>
+                    </div>
+                )}
             </div>
              {trip.notes && (
                 <div className="pt-2 text-sm">
@@ -192,7 +123,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             )}
             {(trip.expenses && trip.expenses.length > 0) && (
                  <div className="pt-2 text-sm">
-                    <p className="font-medium">Otros Gastos ({formatCurrency(otherExpenses)}):</p>
+                    <p className="font-medium">Detalle Otros Gastos:</p>
                      <ul className="text-muted-foreground list-disc pl-5 mt-1">
                         {trip.expenses.map((expense, index) => (
                             <li key={index} className="flex justify-between">
@@ -210,20 +141,21 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                         {isFetchingRate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
                         Calcular Costo Real
                     </Button>
-                    {exchangeRate && <p className="text-xs text-muted-foreground">Usando cambio 1 USD = {formatCurrency(exchangeRate)}</p>}
+                    {exchangeRate && <p className="text-xs text-muted-foreground">Usando cambio 1 USD = {formatCurrency(exchangeRate)} ARS</p>}
                 </div>
-                {realTotalCost !== null && realFuelCost !== null && (
-                    <div className="grid grid-cols-2 gap-4 text-sm rounded-lg bg-muted/50 p-3">
-                        <div>
-                            <p className="font-semibold text-base">{formatCurrency(realFuelCost)}</p>
-                            <p className="text-xs text-muted-foreground">Costo Combustible Real</p>
-                        </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm rounded-lg bg-muted/50 p-3">
+                    <div>
+                        <p className="font-semibold text-base">{realFuelCost !== null ? formatCurrency(realFuelCost) : 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">Costo Combustible + Gastos</p>
+                    </div>
+                    {realTotalCost !== null && (
                         <div>
                             <p className="font-semibold text-base">{formatCurrency(realTotalCost)}</p>
-                            <p className="text-xs text-muted-foreground">Costo Total Real</p>
+                            <p className="text-xs text-muted-foreground">Costo Total Real del Viaje</p>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
              <div className="flex gap-2 pt-4">
@@ -243,7 +175,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
 }
 
 
-export default function CompletedTrips({ trips, vehicle, allFuelLogs }: CompletedTripsProps) {
+export default function CompletedTrips({ trips, vehicle, allFuelLogs }: TripDetailsProps) {
   if (trips.length === 0) {
     return null;
   }
