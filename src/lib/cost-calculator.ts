@@ -31,7 +31,9 @@ export function calculateCostsPerKm(
 
   if (purchasePrice > 0 && kmPerYear > 0 && usefulLifeYears > 0) {
     const totalKmAmortization = kmPerYear * usefulLifeYears;
-    amortizationPerKm = (purchasePrice - resaleValue) / totalKmAmortization;
+    if (totalKmAmortization > 0) {
+        amortizationPerKm = (purchasePrice - resaleValue) / totalKmAmortization;
+    }
   }
 
   // 2. Costo Fijo por kilometro (CF/Km) in USD
