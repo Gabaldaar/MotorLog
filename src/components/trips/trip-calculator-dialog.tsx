@@ -85,12 +85,12 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
     setIsFetchingRate(true);
     let rateValue = null;
     try {
-        const rate = await getOfficialDolarRate();
-        rateValue = rate.average;
+        const rateData = await getOfficialDolarRate();
+        rateValue = rateData.rate;
         setExchangeRate(rateValue);
         toast({
             title: 'Cotización Obtenida',
-            description: `1 USD = ${formatCurrency(rate.average)} ARS`,
+            description: `1 USD = ${formatCurrency(rateValue)} ARS`,
         });
     } catch (error: any) {
         toast({
@@ -106,6 +106,7 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
 
   async function onSubmit(values: FormValues) {
     setIsCalculating(true);
+    setCalculationResult(null);
     if (!vehicle) {
         toast({ variant: 'destructive', title: 'Error', description: 'No hay un vehículo seleccionado.'});
         setIsCalculating(false);
@@ -115,6 +116,12 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
     let currentExchangeRate = exchangeRate;
     if (currentExchangeRate === null || currentExchangeRate <= 0) {
         currentExchangeRate = await handleFetchRate();
+    }
+
+    if (currentExchangeRate === null) {
+      toast({ variant: 'destructive', title: 'Cálculo incompleto', description: 'No se pudo obtener el tipo de cambio. Intenta ingresarlo manualmente.'});
+      setIsCalculating(false);
+      return;
     }
 
     const fallbackConsumption = vehicle.averageConsumptionKmPerLiter > 0 ? vehicle.averageConsumptionKmPerLiter : 1;

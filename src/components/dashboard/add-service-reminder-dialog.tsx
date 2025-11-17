@@ -236,11 +236,11 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
   const handleFetchRate = async () => {
     setIsFetchingRate(true);
     try {
-        const rate = await getOfficialDolarRate();
-        setValue('exchangeRate', rate.average.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        const rateData = await getOfficialDolarRate();
+        setValue('exchangeRate', rateData.rate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
         toast({
             title: 'Cotización Obtenida',
-            description: `Dólar (Promedio): ${rate.average}`,
+            description: `Dólar Oficial (Vendedor): ${rateData.rate}`,
         });
     } catch (error: any) {
         toast({

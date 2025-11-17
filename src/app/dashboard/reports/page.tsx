@@ -69,11 +69,11 @@ export default function ReportsPage() {
     const fetchRate = async () => {
       try {
         setIsLoadingRate(true);
-        const rate = await getOfficialDolarRate();
-        setExchangeRate(rate.average);
+        const rateData = await getOfficialDolarRate();
+        setExchangeRate(rateData.rate);
         toast({
             title: 'Cotización Obtenida',
-            description: `Dólar (Promedio): ${formatCurrency(rate.average)}`,
+            description: `Dólar Oficial (Vendedor): ${formatCurrency(rateData.rate)}`,
         });
       } catch (error: any) {
         toast({

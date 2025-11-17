@@ -12,7 +12,7 @@ const ExchangeRateApiResponseSchema = z.object({
 });
 
 const ExchangeRateOutputSchema = z.object({
-  average: z.number().describe('The average price between buy and sell.'),
+  rate: z.number().describe('The selling price of the official Dolar.'),
   fecha: z.string().describe('The date of the exchange rate.'),
 });
 
@@ -34,17 +34,10 @@ export async function getOfficialDolarRate(): Promise<ExchangeRateOutput> {
     // Validate the API response with Zod
     const parsedApiData = ExchangeRateApiResponseSchema.parse(data);
 
-    const { compra, venta, fechaActualizacion } = parsedApiData;
-    
-    let average: number;
-    if (compra > 0 && venta > 0) {
-        average = (compra + venta) / 2;
-    } else {
-        average = venta > 0 ? venta : compra;
-    }
+    const { venta, fechaActualizacion } = parsedApiData;
 
     return {
-        average,
+        rate: venta,
         fecha: fechaActualizacion,
     };
 

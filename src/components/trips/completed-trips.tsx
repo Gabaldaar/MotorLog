@@ -36,11 +36,11 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     const handleFetchRate = async () => {
         setIsFetchingRate(true);
         try {
-            const rate = await getOfficialDolarRate();
-            setExchangeRate(rate.average);
+            const rateData = await getOfficialDolarRate();
+            setExchangeRate(rateData.rate);
             toast({
                 title: 'Cotización Obtenida',
-                description: `1 USD = ${formatCurrency(rate.average)} ARS`,
+                description: `1 USD = ${formatCurrency(rateData.rate)} ARS`,
             });
         } catch (error: any) {
             toast({
