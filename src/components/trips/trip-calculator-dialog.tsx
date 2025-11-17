@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { parseCurrency, formatCurrency } from '@/lib/utils';
 import type { Vehicle, ProcessedFuelLog } from '@/lib/types';
-import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 import { calculateCostsPerKm, calculateTotalCostInARS } from '@/lib/cost-calculator';
 import { Separator } from '../ui/separator';
 import { useVehicles } from '@/context/vehicle-context';
@@ -83,7 +83,7 @@ export default function TripCalculatorDialog({ children, allFuelLogs }: TripCalc
     setIsFetchingRate(true);
     let rateValue = null;
     try {
-        const rate = await getDolarBlueRate();
+        const rate = await getOfficialDolarRate();
         rateValue = rate.average;
         setExchangeRate(rateValue);
         toast({

@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react';
 import { differenceInHours, differenceInMinutes } from 'date-fns';
 import DeleteTripDialog from './delete-trip-dialog';
 import { calculateCostsPerKm, calculateTotalCostInARS } from '@/lib/cost-calculator';
-import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
@@ -36,7 +36,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     const handleFetchRate = async () => {
         setIsFetchingRate(true);
         try {
-            const rate = await getDolarBlueRate();
+            const rate = await getOfficialDolarRate();
             setExchangeRate(rate.average);
             toast({
                 title: 'Cotización Obtenida',

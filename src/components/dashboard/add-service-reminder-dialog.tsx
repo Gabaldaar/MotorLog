@@ -40,7 +40,7 @@ import { setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-b
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { DialogTrigger } from '../ui/dialog';
-import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 
 
 const formSchema = z.object({
@@ -236,7 +236,7 @@ export default function AddServiceReminderDialog({ vehicleId, reminder, children
   const handleFetchRate = async () => {
     setIsFetchingRate(true);
     try {
-        const rate = await getDolarBlueRate();
+        const rate = await getOfficialDolarRate();
         setValue('exchangeRate', rate.average.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
         toast({
             title: 'Cotización Obtenida',

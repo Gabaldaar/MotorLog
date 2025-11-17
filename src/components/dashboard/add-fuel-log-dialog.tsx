@@ -48,7 +48,7 @@ import type { FuelLog, User, Vehicle, ConfigItem } from '@/lib/types';
 import FindNearbyGasStationsDialog from '../ai/find-nearby-gas-stations-dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Separator } from '../ui/separator';
-import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 
 
 const formSchema = z.object({
@@ -136,7 +136,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const handleFetchRate = async () => {
     setIsFetchingRate(true);
     try {
-        const rate = await getDolarBlueRate();
+        const rate = await getOfficialDolarRate();
         setValue('exchangeRate', rate.average.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
         toast({
             title: 'Cotización Obtenida',
@@ -566,4 +566,3 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     </Dialog>
   );
 }
-

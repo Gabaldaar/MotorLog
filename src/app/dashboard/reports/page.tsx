@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { MonthlyCostsChart } from '@/components/reports/monthly-costs-chart';
 import { MonthlyDistanceChart } from '@/components/reports/monthly-distance-chart';
 import { formatCurrency } from '@/lib/utils';
-import { getDolarBlueRate } from '@/ai/flows/get-exchange-rate';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 import { calculateCostsPerKm, calculateTotalCostInARS } from '@/lib/cost-calculator';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
@@ -70,7 +70,7 @@ export default function ReportsPage() {
     const fetchRate = async () => {
       try {
         setIsLoadingRate(true);
-        const rate = await getDolarBlueRate();
+        const rate = await getOfficialDolarRate();
         setExchangeRate(rate.average);
         toast({
             title: 'Cotización Obtenida',
