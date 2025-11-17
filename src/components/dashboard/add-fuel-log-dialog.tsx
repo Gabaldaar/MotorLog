@@ -132,6 +132,26 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
 
   const { watch, setValue, trigger } = form;
   const watchedValues = watch();
+  
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rate = await getDolarBlueRate();
+        setValue('exchangeRate', rate.average.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `Dólar (Promedio): ${rate.average}`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: error.message,
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -150,8 +170,13 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
         exchangeRate: toLocaleString(fuelLog?.exchangeRate),
         };
         form.reset(defaultVals);
+        
+        // Auto-fetch rate for new logs only
+        if (!isEditing) {
+            handleFetchRate();
+        }
     }
-  }, [fuelLog, open, form, vehicle]);
+  }, [fuelLog, open, form, vehicle, isEditing]);
 
 
   useEffect(() => {
@@ -255,26 +280,6 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const handleNearbyGasStationSelect = (name: string) => {
     setValue('gasStation', name, { shouldValidate: true });
   }
-
-  const handleFetchRate = async () => {
-    setIsFetchingRate(true);
-    try {
-        const rate = await getDolarBlueRate();
-        setValue('exchangeRate', rate.average.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
-        toast({
-            title: 'Cotización Obtenida',
-            description: `Dólar (Promedio): ${rate.average}`,
-        });
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Error al obtener cotización',
-            description: error.message,
-        });
-    } finally {
-        setIsFetchingRate(false);
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -561,3 +566,4 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
     </Dialog>
   );
 }
+
