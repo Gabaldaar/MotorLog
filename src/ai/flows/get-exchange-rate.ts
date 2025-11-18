@@ -26,6 +26,8 @@ export async function getOfficialDolarRate(): Promise<ExchangeRateOutput> {
     const response = await fetch('https://www.dolarsi.com/api/api.php?type=valoresprincipales', { cache: 'no-store' });
     
     if (!response.ok) {
+      // **INDICADOR AÑADIDO**: Logueamos el status y texto de la respuesta si falla.
+      console.error(`[getOfficialDolarRate] Network response was not ok. Status: ${response.status}, StatusText: ${response.statusText}`);
       throw new Error(`Failed to fetch exchange rate. Status: ${response.status}`);
     }
     const data = await response.json();
@@ -50,10 +52,13 @@ export async function getOfficialDolarRate(): Promise<ExchangeRateOutput> {
     };
 
   } catch (error) {
-    console.error('[getOfficialDolarRate] Error fetching or parsing data:', error);
+    // **INDICADOR MEJORADO**: Imprimimos el objeto de error completo para máximo detalle.
+    console.error('[getOfficialDolarRate] Detailed error fetching or parsing data:', error);
+    
     if (error instanceof z.ZodError) {
         throw new Error('La respuesta de la API de cotización no tiene el formato esperado.');
     }
-    throw new Error('No se pudo obtener la cotización del dólar. Inténtalo de nuevo.');
+    // Devolvemos un error más genérico pero informativo al usuario final.
+    throw new Error('No se pudo obtener la cotización del dólar. Revisa la consola del servidor para más detalles.');
   }
 }
