@@ -4,7 +4,8 @@
 import type { Handler } from '@netlify/functions';
 import admin from '@/firebase/admin';
 import type { ServiceReminder, Vehicle } from '@/lib/types';
-import webpush, { type PushSubscription } from 'web-push';
+import webpush from 'web-push';
+import type { PushSubscription } from 'web-push';
 import { differenceInDays, differenceInHours } from 'date-fns';
 
 const db = admin.firestore();
@@ -12,7 +13,7 @@ const db = admin.firestore();
 // --- CONFIGURACIÓN CENTRALIZADA ---
 const URGENCY_THRESHOLD_KM = 1000;
 const URGENCY_THRESHOLD_DAYS = 15;
-const NOTIFICATION_COOLDOWN_HOURS = 24; // Horas a esperar antes de reenviar una notificación.
+const NOTIFICATION_COOLDOWN_HOURS = 48; // Horas a esperar antes de reenviar una notificación.
 
 const vehicleOdometerCache = new Map<string, number>();
 const allSubscriptionsCache: { subs: PushSubscription[], timestamp: number | null } = { subs: [], timestamp: null };
@@ -132,13 +133,11 @@ export const handler: Handler = async () => {
   console.log('[Netlify Function] - checkReminders: Cron job triggered.');
 
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-      if (!webpush.getVapidDetails()) {
-        webpush.setVapidDetails(
-            'mailto:your-email@example.com',
-            process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-            process.env.VAPID_PRIVATE_KEY
-        );
-      }
+    webpush.setVapidDetails(
+        'mailto:your-email@example.com',
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
   } else {
      console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
      return { statusCode: 500, body: 'VAPID keys are not set on the server.' };
@@ -153,7 +152,7 @@ export const handler: Handler = async () => {
     let totalNotificationsSent = 0;
     const allVehicles = vehiclesSnap.docs.map(doc => ({id: doc.id, ...doc.data()} as Vehicle));
 
-    for (const vehicle of allVehles) {
+    for (const vehicle of allVehicles) {
       const count = await checkAndSendForVehicle(vehicle);
       totalNotificationsSent += count;
     }
