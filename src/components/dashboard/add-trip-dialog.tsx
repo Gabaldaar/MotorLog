@@ -31,7 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { toDateTimeLocalString, parseCurrency } from '@/lib/utils';
+import { toDateTimeLocalString, parseCurrency, formatCurrency } from '@/lib/utils';
 import type { Trip, ConfigItem, User } from '@/lib/types';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
@@ -137,13 +137,13 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         setValue('exchangeRate', rateData.rate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
         toast({
             title: 'Cotización Obtenida',
-            description: `1 USD = ${formatCurrency(rateData.rate)} ARS`,
+            description: `Dólar Oficial (Vendedor): ${formatCurrency(rateData.rate)}`,
         });
     } catch (error: any) {
         toast({
             variant: 'destructive',
             title: 'Error al obtener cotización',
-            description: 'No se pudo obtener el valor del dólar. Inténtalo de nuevo o ingrésalo manualmente.',
+            description: error.message || 'No se pudo obtener el valor del dólar. Inténtalo de nuevo o ingrésalo manualmente.',
         });
     } finally {
         setIsFetchingRate(false);
@@ -226,7 +226,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-headline">{isEditing ? (trip.status === 'active' ? 'Editar Viaje Activo' : 'Editar Viaje') : 'Iniciar Nuevo'} Viaje</DialogTitle>
+          <DialogTitle className="font-headline">{isEditing ? (trip?.status === 'active' ? 'Editar Viaje Activo' : 'Editar Viaje') : 'Iniciar Nuevo'} Viaje</DialogTitle>
           <DialogDescription>
             {isEditing ? 'Completa o edita los detalles de tu viaje.' : 'Registra un nuevo viaje para tu vehículo.'}
           </DialogDescription>
@@ -236,7 +236,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
              <div className="max-h-[65vh] overflow-y-auto pr-4 pl-1 -mr-4 -ml-1">
                 <div className="space-y-4">
                   
-                  {isEditing && trip.status !== 'completed' && (
+                  {isEditing && trip?.status !== 'completed' && (
                     <FormField
                       control={form.control}
                       name="status"
