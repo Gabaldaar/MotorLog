@@ -84,6 +84,7 @@ export type Trip = {
     endOdometer?: number;
     status: 'active' | 'completed';
     expenses?: TripExpense[];
+    exchangeRate?: number;
 };
 
 export type ProcessedFuelLog = FuelLog & {
@@ -118,5 +119,7 @@ export type TimelineItem = {
   date: string;
   data: ProcessedFuelLog | ProcessedServiceReminder | Trip;
 };
+
+    
 
     

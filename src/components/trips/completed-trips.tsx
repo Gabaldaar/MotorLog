@@ -7,7 +7,7 @@ import { Map, Edit, Trash2, Clock, Droplets, Wallet, Route, User, Wand2, Loader2
 import { formatDateTime, formatCurrency, parseCurrency } from '@/lib/utils';
 import AddTripDialog from '../dashboard/add-trip-dialog';
 import { Button } from '../ui/button';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { differenceInHours, differenceInMinutes } from 'date-fns';
 import DeleteTripDialog from './delete-trip-dialog';
 import { calculateCostsPerKm, calculateTotalCostInARS } from '@/lib/cost-calculator';
@@ -25,9 +25,13 @@ interface TripDetailsProps {
 
 function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     const { toast } = useToast();
-    const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+    const [exchangeRate, setExchangeRate] = useState<number | null>(trip.exchangeRate || null);
     const [isFetchingRate, setIsFetchingRate] = useState(false);
     
+    useEffect(() => {
+        setExchangeRate(trip.exchangeRate || null);
+    }, [trip.exchangeRate]);
+
     const lastFuelLog = useMemo(() => {
         if (!allFuelLogs || allFuelLogs.length === 0) return null;
         return allFuelLogs.sort((a,b) => b.odometer - a.odometer)[0];
@@ -150,25 +154,27 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             
             {/* Cost Calculation Section */}
             <div className="pt-4 border-t space-y-4">
-                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
-                    <Button onClick={handleFetchRate} disabled={isFetchingRate} variant="outline" size="sm">
-                        {isFetchingRate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
-                        Usar Cambio Actual
-                    </Button>
-                    <div className="w-full sm:w-auto">
-                        <Label htmlFor={`exchange-rate-${trip.id}`} className="sr-only">Tipo de Cambio</Label>
-                        <Input 
-                            id={`exchange-rate-${trip.id}`}
-                            type="text" 
-                            placeholder="...o ingresa un valor"
-                            value={exchangeRate !== null ? exchangeRate.toLocaleString('es-AR') : ''}
-                            onChange={(e) => setExchangeRate(parseCurrency(e.target.value))}
-                            className="h-9"
-                        />
+                 {!trip.exchangeRate && (
+                    <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                        <Button onClick={handleFetchRate} disabled={isFetchingRate} variant="outline" size="sm">
+                            {isFetchingRate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
+                            Usar Cambio Actual
+                        </Button>
+                        <div className="w-full sm:w-auto">
+                            <Label htmlFor={`exchange-rate-${trip.id}`} className="sr-only">Tipo de Cambio</Label>
+                            <Input 
+                                id={`exchange-rate-${trip.id}`}
+                                type="text" 
+                                placeholder="...o ingresa un valor"
+                                value={exchangeRate !== null ? exchangeRate.toLocaleString('es-AR') : ''}
+                                onChange={(e) => setExchangeRate(parseCurrency(e.target.value))}
+                                className="h-9"
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
                 
-                {exchangeRate !== null && detailedCostsARS && (
+                {exchangeRate !== null && detailedCostsARS ? (
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="p-3 rounded-lg bg-muted/30 space-y-2">
@@ -226,6 +232,13 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                 <p className="font-semibold text-lg text-primary">{formatCurrency(totalRealCostPlusExpenses)}</p>
                             </div>
                         </div>
+                    </div>
+                ) : (
+                    <div className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-md">
+                        {trip.exchangeRate 
+                            ? 'El costo del viaje fue calculado con el cambio guardado. '
+                            : 'Ingresa o busca un tipo de cambio para calcular los costos totales del viaje.'
+                        }
                     </div>
                 )}
             </div>
@@ -289,3 +302,5 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: TripDeta
     </Card>
   );
 }
+
+    

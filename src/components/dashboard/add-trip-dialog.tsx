@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +37,7 @@ import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 
 const expenseSchema = z.object({
   description: z.string().min(1, 'La descripción es obligatoria.'),
@@ -56,6 +57,7 @@ const formSchema = z.object({
   endDate: z.string().optional(),
   endOdometer: z.coerce.number().optional(),
   expenses: z.array(expenseSchema).optional(),
+  exchangeRate: z.string().optional(),
 }).refine(data => {
   if (data.status === 'completed') {
     return !!data.endDate && !isNaN(Date.parse(data.endDate)) && !!data.endOdometer;
@@ -86,6 +88,7 @@ interface AddTripDialogProps {
 export default function AddTripDialog({ vehicleId, trip, children, lastOdometer }: AddTripDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
   const { toast } = useToast();
   const { user: authUser } = useUser();
   const firestore = useFirestore();
@@ -113,6 +116,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: 'active',
         endOdometer: lastOdometer || 0,
         expenses: [],
+        exchangeRate: '',
     }
   });
   
@@ -144,6 +148,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         endDate: trip?.endDate ? toDateTimeLocalString(new Date(trip.endDate)) : now,
         endOdometer: trip?.endOdometer || lastOdometer || 0,
         expenses,
+        exchangeRate: trip?.exchangeRate ? toLocaleString(trip.exchangeRate) : '',
       });
     }
   }, [open, trip, reset, lastOdometer]);
@@ -153,6 +158,26 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
       setValue('endOdometer', lastOdometer);
     }
   }, [status, lastOdometer, setValue, form, trip]);
+  
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rateData = await getOfficialDolarRate();
+        setValue('exchangeRate', rateData.rate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `Dólar Oficial (Vendedor): ${rateData.rate}`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: error.message,
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
 
 
   async function onSubmit(values: FormValues) {
@@ -177,9 +202,10 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: values.status,
         expenses: values.expenses?.map(e => ({ description: e.description, amount: parseCurrency(e.amount) })) || [],
         startDate: new Date(values.startDate).toISOString(),
-        ...(values.status === 'completed' && values.endDate && values.endOdometer && {
+        ...(values.status === 'completed' && {
             endOdometer: values.endOdometer,
-            endDate: new Date(values.endDate).toISOString(),
+            endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+            exchangeRate: values.exchangeRate ? parseCurrency(values.exchangeRate) : undefined,
         }),
     };
 
@@ -317,6 +343,28 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                              <FormItem><FormLabel>Fecha de Fin</FormLabel><FormControl><Input type="datetime-local" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                           )} />
                       </div>
+                       <FormField
+                        control={form.control}
+                        name="exchangeRate"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Tipo de Cambio (ARS por USD)</FormLabel>
+                            <div className="flex items-center gap-2">
+                                <FormControl>
+                                <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                                </FormControl>
+                                <Button type="button" variant="outline" size="icon" onClick={handleFetchRate} disabled={isFetchingRate}>
+                                    {isFetchingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                    <span className="sr-only">Obtener cotización actual</span>
+                                </Button>
+                            </div>
+                            <FormDescription>
+                                Se usará para calcular el costo real del viaje.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
                     </div>
                   )}
               </div>
@@ -334,3 +382,5 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
     </Dialog>
   );
 }
+
+    
