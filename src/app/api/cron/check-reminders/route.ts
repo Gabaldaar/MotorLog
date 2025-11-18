@@ -8,6 +8,12 @@ import { differenceInDays, differenceInHours } from 'date-fns';
 
 const db = admin.firestore();
 
+// --- CONFIGURACIÓN CENTRALIZADA ---
+// Estos valores controlan el comportamiento de las notificaciones.
+const URGENCY_THRESHOLD_KM = 1000; // Se considera "urgente" si faltan menos de 1000 km.
+const URGENCY_THRESHOLD_DAYS = 15;  // Se considera "urgente" si faltan menos de 15 días.
+const NOTIFICATION_COOLDOWN_HOURS = 48; // Horas a esperar antes de reenviar una notificación para el mismo servicio.
+
 // In-memory caches to avoid redundant DB reads during a single run
 const vehicleOdometerCache = new Map<string, number>();
 const allSubscriptionsCache: { subs: PushSubscription[], timestamp: number | null } = { subs: [], timestamp: null };
@@ -57,11 +63,6 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
 
     const subscriptions = await getAllSubscriptions();
     if (subscriptions.length === 0) return notificationsSent;
-
-    // These should come from a global config, but hardcoded for now.
-    const URGENCY_THRESHOLD_KM = 1000;
-    const URGENCY_THRESHOLD_DAYS = 15;
-    const NOTIFICATION_COOLDOWN_HOURS = 1;
 
     for (const reminder of pendingReminders) {
         const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;

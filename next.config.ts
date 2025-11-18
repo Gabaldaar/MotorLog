@@ -26,8 +26,10 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverActions: {
+    allowedOrigins: ['*'],
+  },
 };
 
 const withPwaConfig = withPWA(pwaConfig);
 export default withPwaConfig(nextConfig);
-
