@@ -8,4 +8,4 @@
 [[redirects]]
   from = "/.netlify/functions/check-reminders"
   to = "/api/cron/check-reminders"
-  status = 200
+  status = 200!
