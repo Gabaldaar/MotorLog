@@ -315,7 +315,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
-                              defaultValue={field.value}
+                              value={field.value}
                               className="grid grid-cols-2 gap-4"
                             >
                               <FormItem>
