@@ -12,7 +12,7 @@ const db = admin.firestore();
 // --- CONFIGURACIÓN CENTRALIZADA ---
 const URGENCY_THRESHOLD_KM = 1000;
 const URGENCY_THRESHOLD_DAYS = 15;
-const NOTIFICATION_COOLDOWN_HOURS = 48; // Horas a esperar antes de reenviar una notificación.
+const NOTIFICATION_COOLDOWN_HOURS = 24; // Horas a esperar antes de reenviar una notificación.
 
 const vehicleOdometerCache = new Map<string, number>();
 const allSubscriptionsCache: { subs: PushSubscription[], timestamp: number | null } = { subs: [], timestamp: null };
