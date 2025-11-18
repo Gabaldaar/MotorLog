@@ -87,6 +87,8 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
                 continue;
             }
             
+            notificationsSent++; // Increment count only when we are actually going to send.
+
             const title = `Alerta de Servicio: ${vehicle.make} ${vehicle.model}`;
             let body = `${reminder.serviceType} - `;
             body += isOverdue ? '¡Servicio Vencido!' : '¡Servicio Próximo!';
@@ -102,7 +104,6 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
             const sendPromises = subscriptions.map(subscription => 
                 webpush.sendNotification(subscription, payload)
                 .then(() => {
-                    notificationsSent++;
                     reminderSentToAtLeastOneDevice = true;
                 })
                 .catch(error => {
@@ -161,7 +162,7 @@ export const handler: Handler = async () => {
     allSubscriptionsCache.subs = [];
     allSubscriptionsCache.timestamp = null;
 
-    const successMessage = `Cron job completed. Sent ${totalNotificationsSent} total notifications.`;
+    const successMessage = `Cron job completed. Processed ${totalNotificationsSent} notification events.`;
     console.log(`[Netlify Function] - checkReminders: ${successMessage}`);
     return { statusCode: 200, body: successMessage };
 
