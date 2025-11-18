@@ -220,7 +220,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                             </div>
                              <div className="p-3 rounded-lg border">
                                 <p className="text-xs text-muted-foreground">CTR/km</p>
-                                <p className="font-semibold text-lg">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS)}</p>
+                                <p className="font-semibold text-lg">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS || 0)}</p>
                             </div>
                             <div className="p-3 rounded-lg border border-primary/50 bg-primary/10">
                                 <p className="text-xs text-primary/80">CTR x KmR + GV</p>
