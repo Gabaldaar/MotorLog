@@ -1,6 +1,6 @@
 'use server';
 
-import type { Handler } from '@netlify/functions';
+import type { NextRequest } from 'next/server';
 import admin from '@/firebase/admin';
 import type { ServiceReminder, Vehicle } from '@/lib/types';
 import webpush, { type PushSubscription } from 'web-push';
@@ -23,15 +23,22 @@ async function getLatestOdometer(vehicleId: string): Promise<number> {
     if (vehicleOdometerCache.has(vehicleId)) {
         return vehicleOdometerCache.get(vehicleId)!;
     }
-    const lastLogSnap = await db.collection('vehicles').doc(vehicleId).collection('fuel_records').orderBy('odometer', 'desc').limit(1).get();
-    if (lastLogSnap.empty) {
-        vehicleOdometerCache.set(vehicleId, 0);
-        return 0;
+    // Get the last odometer reading from either fuel_records or trips
+    const lastFuelLogSnap = await db.collection('vehicles').doc(vehicleId).collection('fuel_records').orderBy('odometer', 'desc').limit(1).get();
+    const lastTripSnap = await db.collection('vehicles').doc(vehicleId).collection('trips').orderBy('endOdometer', 'desc').limit(1).get();
+    
+    const lastFuelOdometer = lastFuelLogSnap.empty ? 0 : lastFuelLogSnap.docs[0].data().odometer;
+    const lastTripOdometer = lastTripSnap.empty ? 0 : lastTripSnap.docs[0].data().endOdometer || 0;
+    
+    const lastOdometer = Math.max(lastFuelOdometer, lastTripOdometer);
+
+    if (lastOdometer > 0) {
+        vehicleOdometerCache.set(vehicleId, lastOdometer);
     }
-    const lastOdometer = lastLogSnap.docs[0].data().odometer;
-    vehicleOdometerCache.set(vehicleId, lastOdometer);
+    
     return lastOdometer;
 }
+
 
 async function getAllSubscriptions(): Promise<PushSubscription[]> {
     const now = Date.now();
@@ -102,10 +109,8 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
                 .catch(error => {
                      if (error.statusCode === 410) { // GONE, subscription is no longer valid
                         console.log('[Cron] Subscription expired. Deleting from DB...');
-                        db.collection('subscriptions').where('subscription.endpoint', '==', subscription.endpoint).limit(1).get()
-                         .then(snap => {
-                             if (!snap.empty) snap.docs[0].ref.delete();
-                         });
+                        const docId = encodeURIComponent(subscription.endpoint);
+                        db.collection('subscriptions').doc(docId).delete();
                     } else {
                         console.error(`[Cron] Failed to send notification for reminder ${reminder.id}:`, error.message);
                     }
@@ -125,11 +130,10 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
 }
 
 // The main function for the scheduled endpoint
-export const handler: Handler = async () => {
+export async function GET(request: NextRequest) {
   console.log('[Netlify Function] - checkReminders: Cron job triggered.');
 
   // --- START VAPID CONFIG ---
-  // Moved inside the handler to run at request time, not build time.
   if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
       if (!webpush.getVapidDetails()) {
         webpush.setVapidDetails(
@@ -140,24 +144,18 @@ export const handler: Handler = async () => {
       }
   } else {
      console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
-     return {
-        statusCode: 500,
-        body: 'VAPID keys are not set on the server.'
-     }
+     return new Response('VAPID keys are not set on the server.', { status: 500 });
   }
   // --- END VAPID CONFIG ---
 
   try {
     const vehiclesSnap = await db.collection('vehicles').get();
     if (vehiclesSnap.empty) {
-      return {
-          statusCode: 200,
-          body: 'No vehicles to check.'
-      }
+        return new Response('No vehicles to check.', { status: 200 });
     }
 
     let totalNotificationsSent = 0;
-    const allVehicles = vehiclesSnap.docs.map(doc => doc.data() as Vehicle);
+    const allVehicles = vehiclesSnap.docs.map(doc => ({id: doc.id, ...doc.data()} as Vehicle));
 
     for (const vehicle of allVehicles) {
       const count = await checkAndSendForVehicle(vehicle);
@@ -171,16 +169,10 @@ export const handler: Handler = async () => {
 
     const successMessage = `Cron job completed. Sent ${totalNotificationsSent} total notifications.`;
     console.log(`[Netlify Function] - checkReminders: ${successMessage}`);
-    return {
-        statusCode: 200,
-        body: successMessage
-    };
+    return new Response(successMessage, { status: 200 });
 
   } catch (error: any) {
     console.error('[Netlify Function] - checkReminders: Error during execution:', error);
-    return {
-        statusCode: 500,
-        body: `Internal server error: ${error.message}`
-    };
+    return new Response(`Internal server error: ${error.message}`, { status: 500 });
   }
 }
