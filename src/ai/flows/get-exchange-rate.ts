@@ -5,15 +5,16 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-const ExchangeRateApiResponseSchema = z.object({
-  compra: z.number().describe('The buying price of the official Dolar.'),
-  venta: z.number().describe('The selling price of the official Dolar.'),
-  fechaActualizacion: z.string().describe('The date of the exchange rate.'),
-});
+const ExchangeRateApiResponseSchema = z.array(z.object({
+  casa: z.object({
+    compra: z.string(),
+    venta: z.string(),
+    nombre: z.string(),
+  })
+}));
 
 const ExchangeRateOutputSchema = z.object({
   rate: z.number().describe('The selling price of the official Dolar.'),
-  fecha: z.string().describe('The date of the exchange rate.'),
 });
 
 
@@ -22,8 +23,11 @@ export type ExchangeRateOutput = z.infer<typeof ExchangeRateOutputSchema>;
 // This is the function we will call directly from our React component.
 export async function getOfficialDolarRate(): Promise<ExchangeRateOutput> {
   try {
-    const response = await fetch('https://dolarapi.com/v1/dolares/oficial');
-
+    const response = await fetch('https://www.dolarsi.com/api/api.php?type=valoresprincipales', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch exchange rate. Status: ${response.status}`);
     }
@@ -32,11 +36,20 @@ export async function getOfficialDolarRate(): Promise<ExchangeRateOutput> {
     // Validate the API response with Zod
     const parsedApiData = ExchangeRateApiResponseSchema.parse(data);
 
-    const { venta, fechaActualizacion } = parsedApiData;
+    const oficial = parsedApiData.find(d => d.casa.nombre === 'Dolar Oficial');
+    
+    if (!oficial) {
+      throw new Error('No se pudo encontrar la cotización del "Dolar Oficial" en la respuesta de la API.');
+    }
+
+    const venta = parseFloat(oficial.casa.venta.replace(',', '.'));
+
+    if (isNaN(venta)) {
+      throw new Error('El valor de venta del Dólar Oficial no es un número válido.');
+    }
 
     return {
-        rate: venta,
-        fecha: fechaActualizacion,
+        rate: venta
     };
 
   } catch (error) {
