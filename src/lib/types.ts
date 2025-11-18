@@ -1,4 +1,5 @@
 
+
 export type Vehicle = {
   id: string;
   make: string;
@@ -84,6 +85,7 @@ export type Trip = {
     endOdometer?: number;
     status: 'active' | 'completed';
     expenses?: TripExpense[];
+    exchangeRate?: number; // Dollar exchange rate at the time of completion
 };
 
 export type ProcessedFuelLog = FuelLog & {

@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Wand2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -38,6 +39,7 @@ import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
+import { getOfficialDolarRate } from '@/ai/flows/get-exchange-rate';
 
 const expenseSchema = z.object({
   description: z.string().min(1, 'La descripción es obligatoria.'),
@@ -57,6 +59,7 @@ const formSchema = z.object({
   endDate: z.string().optional(),
   endOdometer: z.coerce.number().optional(),
   expenses: z.array(expenseSchema).optional(),
+  exchangeRate: z.string().optional(),
 }).refine(data => {
   if (data.status === 'completed') {
     return !!data.endDate && !isNaN(Date.parse(data.endDate)) && !!data.endOdometer;
@@ -87,6 +90,7 @@ interface AddTripDialogProps {
 export default function AddTripDialog({ vehicleId, trip, children, lastOdometer }: AddTripDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingRate, setIsFetchingRate] = useState(false);
   const { toast } = useToast();
   const { user: authUser } = useUser();
   const firestore = useFirestore();
@@ -114,6 +118,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: 'active',
         endOdometer: lastOdometer || 0,
         expenses: [],
+        exchangeRate: '',
     }
   });
   
@@ -124,6 +129,26 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
     control,
     name: "expenses",
   });
+  
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rateData = await getOfficialDolarRate();
+        setValue('exchangeRate', rateData.rate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `1 USD = ${formatCurrency(rateData.rate)} ARS`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: 'No se pudo obtener el valor del dólar. Inténtalo de nuevo o ingrésalo manualmente.',
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -145,6 +170,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         endDate: trip?.endDate ? toDateTimeLocalString(new Date(trip.endDate)) : now,
         endOdometer: trip?.endOdometer || lastOdometer || 0,
         expenses,
+        exchangeRate: toLocaleString(trip?.exchangeRate),
       });
     }
   }, [open, trip, reset, lastOdometer]);
@@ -180,6 +206,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         ...(values.status === 'completed' && {
             endOdometer: values.endOdometer,
             endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
+            exchangeRate: values.exchangeRate ? parseCurrency(values.exchangeRate) : undefined,
         }),
     };
 
@@ -268,6 +295,20 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                       )} />
                   </div>
                   
+                  {status === 'completed' && (
+                    <div className="space-y-4 pt-4 border-t">
+                      <p className="text-sm font-medium">Detalles de Fin</p>
+                      <div className="grid grid-cols-2 gap-4">
+                          <FormField control={form.control} name="endOdometer" render={({ field }) => (
+                              <FormItem><FormLabel>Odómetro Final</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                          <FormField control={form.control} name="endDate" render={({ field }) => (
+                             <FormItem><FormLabel>Fecha de Fin</FormLabel><FormControl><Input type="datetime-local" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                          )} />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-4 pt-4 border-t">
                       <Label>Gastos del Viaje</Label>
                       <div className="space-y-2">
@@ -304,19 +345,29 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                         Añadir Gasto
                       </Button>
                   </div>
-
-
+                  
                   {status === 'completed' && (
-                    <div className="space-y-4 pt-4 border-t">
-                      <p className="text-sm font-medium">Detalles de Fin</p>
-                      <div className="grid grid-cols-2 gap-4">
-                          <FormField control={form.control} name="endOdometer" render={({ field }) => (
-                              <FormItem><FormLabel>Odómetro Final</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name="endDate" render={({ field }) => (
-                             <FormItem><FormLabel>Fecha de Fin</FormLabel><FormControl><Input type="datetime-local" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                          )} />
-                      </div>
+                    <div className="space-y-2 pt-4 border-t">
+                        <Label>Tipo de Cambio (ARS por USD)</Label>
+                        <div className="flex items-center gap-2">
+                            <FormField
+                            control={form.control}
+                            name="exchangeRate"
+                            render={({ field }) => (
+                                <FormItem className="flex-1">
+                                <FormControl>
+                                    <Input type="text" placeholder="Valor del dólar al finalizar" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                            <Button type="button" variant="outline" size="icon" onClick={handleFetchRate} disabled={isFetchingRate}>
+                                {isFetchingRate ? <Loader2 className="h-4 w-4 animate-spin"/> : <Wand2 className="h-4 w-4" />}
+                                <span className="sr-only">Obtener tipo de cambio actual</span>
+                            </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Este valor se guardará para el cálculo de costos históricos.</p>
                     </div>
                   )}
               </div>
