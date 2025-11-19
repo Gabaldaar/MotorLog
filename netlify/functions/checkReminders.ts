@@ -1,4 +1,3 @@
-
 'use server';
 
 import type { Handler } from '@netlify/functions';
@@ -87,7 +86,10 @@ export const handler: Handler = async () => {
         if (!vehicle) continue;
 
         const lastOdometer = await getLatestOdometer(vehicleId);
-        if (lastOdometer === 0) continue;
+        if (lastOdometer === 0) {
+          console.log(`[Cron] Skipping vehicle ${vehicle.make} ${vehicle.model}, no odometer reading found.`);
+          continue;
+        };
 
         const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;
         const daysRemaining = reminder.dueDate ? differenceInDays(new Date(reminder.dueDate), new Date()) : null;
@@ -103,7 +105,7 @@ export const handler: Handler = async () => {
             const hoursSinceLastSent = lastSent ? differenceInHours(new Date(), lastSent) : null;
 
             if (hoursSinceLastSent !== null && hoursSinceLastSent < NOTIFICATION_COOLDOWN_HOURS) {
-                console.log(`[Cron] Skipping notification for "${reminder.serviceType}" on ${vehicle.make}. Cooldown active. Last sent: ${hoursSinceLastSent}h ago.`);
+                console.log(`[Cron] Skipping notification for "${reminder.serviceType}" on ${vehicle.make}. Cooldown active. Last sent: ${hoursSinceLastSent}h ago. Threshold: ${NOTIFICATION_COOLDOWN_HOURS}h.`);
                 continue; // Saltar al siguiente recordatorio
             }
             
