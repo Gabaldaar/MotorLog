@@ -1,3 +1,4 @@
+
 import type { Handler } from '@netlify/functions';
 import admin from '@/firebase/admin';
 import type { ServiceReminder, Vehicle } from '@/lib/types';
@@ -42,6 +43,7 @@ export const handler: Handler = async () => {
     console.log('[Cron] Firestore instance obtained.');
 
     // 1. Usar una collectionGroup query para obtener todos los recordatorios pendientes.
+    // Esta consulta REQUIERE un índice compuesto en Firestore.
     const remindersSnap = await db.collectionGroup('service_reminders')
                                   .where('isCompleted', '==', false)
                                   .orderBy('dueDate', 'desc')
