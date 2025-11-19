@@ -27,12 +27,6 @@ export const handler: Handler = async () => {
      console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
      return { statusCode: 500, body: 'VAPID keys are not set on the server.' };
   }
-  
-  webpush.setVapidDetails(
-      'mailto:your-email@example.com',
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY
-  );
 
   try {
     // 1. Usar una collectionGroup query para obtener todos los recordatorios pendientes.
@@ -132,6 +126,14 @@ export const handler: Handler = async () => {
             });
             
             console.log(`[Cron] Preparing to send notification for reminder: ${reminder.id}`, payload);
+            
+            // ** VAPID CONFIG ISOLATION **
+            // Initialize VAPID details just before sending.
+            webpush.setVapidDetails(
+              'mailto:your-email@example.com',
+              process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+              process.env.VAPID_PRIVATE_KEY!
+            );
 
             let reminderSentToAtLeastOneDevice = false;
             const sendPromises = allSubscriptions.map(subscription => 
