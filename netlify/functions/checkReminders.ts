@@ -1,4 +1,3 @@
-'use server';
 
 import type { Handler } from '@netlify/functions';
 import admin from '@/firebase/admin';
