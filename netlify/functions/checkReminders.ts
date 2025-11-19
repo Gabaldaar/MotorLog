@@ -37,9 +37,24 @@ async function getLatestOdometer(vehicleId: string): Promise<number> {
 async function getVehicleDetails(vehicleId: string): Promise<Vehicle | null> {
     const vehicleSnap = await db.collection('vehicles').doc(vehicleId).get();
     if (!vehicleSnap.exists) {
+        console.log(`[Cron] Vehicle with ID ${vehicleId} not found.`);
         return null;
     }
-    return { id: vehicleSnap.id, ...vehicleSnap.data() } as Vehicle;
+    // Explicitly map the fields to ensure all required ones, including imageUrl, are present.
+    const data = vehicleSnap.data();
+    if (!data) return null;
+
+    return { 
+        id: vehicleSnap.id,
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        plate: data.plate,
+        fuelCapacityLiters: data.fuelCapacityLiters,
+        averageConsumptionKmPerLiter: data.averageConsumptionKmPerLiter,
+        imageUrl: data.imageUrl,
+        imageHint: data.imageHint,
+     } as Vehicle;
 }
 
 /**
@@ -83,7 +98,10 @@ export const handler: Handler = async () => {
         if (!vehicleId) continue;
         
         const vehicle = await getVehicleDetails(vehicleId);
-        if (!vehicle) continue;
+        if (!vehicle) {
+            console.log(`[Cron] Skipping reminder ${reminder.id} because vehicle details could not be fetched.`);
+            continue;
+        }
 
         const lastOdometer = await getLatestOdometer(vehicleId);
         if (lastOdometer === 0) {
@@ -120,6 +138,8 @@ export const handler: Handler = async () => {
                 tag: reminder.id
             });
             
+            console.log(`[Cron] Preparing to send notification for reminder: ${reminder.id}`, payload);
+
             let reminderSentToAtLeastOneDevice = false;
             const sendPromises = allSubscriptions.map(subscription => 
                 webpush.sendNotification(subscription, payload)
