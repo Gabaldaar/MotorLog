@@ -1,0 +1,18 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "service_reminders",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "isCompleted",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dueDate",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ]
+}

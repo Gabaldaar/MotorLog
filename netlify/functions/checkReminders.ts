@@ -35,8 +35,12 @@ export const handler: Handler = async () => {
   );
 
   try {
-    // 1. Usar una collectionGroup query para obtener todos los recordatorios pendientes de una sola vez.
-    const remindersSnap = await db.collectionGroup('service_reminders').where('isCompleted', '==', false).get();
+    // 1. Usar una collectionGroup query para obtener todos los recordatorios pendientes.
+    // Esta consulta requiere un índice compuesto en Firestore.
+    const remindersSnap = await db.collectionGroup('service_reminders')
+                                  .where('isCompleted', '==', false)
+                                  .orderBy('dueDate', 'desc')
+                                  .get();
     
     if (remindersSnap.empty) {
         console.log('[Cron] No pending reminders found.');
