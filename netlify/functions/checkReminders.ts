@@ -11,69 +11,84 @@ import { differenceInDays, differenceInHours } from 'date-fns';
 const db = admin.firestore();
 
 // --- CONFIGURACIÓN CENTRALIZADA ---
+// Este es el único lugar que controla el tiempo de enfriamiento.
+// El valor en la UI es solo de referencia.
+const NOTIFICATION_COOLDOWN_HOURS = 1; 
+
 const URGENCY_THRESHOLD_KM = 1000;
 const URGENCY_THRESHOLD_DAYS = 15;
-// ¡IMPORTANTE! Este es el único lugar que controla el tiempo de enfriamiento.
-// El valor en la UI es solo de referencia. Lo ponemos en 1 para probar.
-const NOTIFICATION_COOLDOWN_HOURS = 1; 
 // ---------------------------------
 
-const vehicleOdometerCache = new Map<string, number>();
-const allSubscriptionsCache: { subs: PushSubscription[], timestamp: number | null } = { subs: [], timestamp: null };
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
-
+/**
+ * Obtiene el último odómetro registrado para un vehículo específico.
+ */
 async function getLatestOdometer(vehicleId: string): Promise<number> {
-    if (vehicleOdometerCache.has(vehicleId)) {
-        return vehicleOdometerCache.get(vehicleId)!;
-    }
     const lastFuelLogSnap = await db.collection('vehicles').doc(vehicleId).collection('fuel_records').orderBy('odometer', 'desc').limit(1).get();
     const lastTripSnap = await db.collection('vehicles').doc(vehicleId).collection('trips').orderBy('endOdometer', 'desc').limit(1).get();
     
     const lastFuelOdometer = lastFuelLogSnap.empty ? 0 : lastFuelLogSnap.docs[0].data().odometer;
     const lastTripOdometer = lastTripSnap.empty ? 0 : lastTripSnap.docs[0].data().endOdometer || 0;
     
-    const lastOdometer = Math.max(lastFuelOdometer, lastTripOdometer);
-
-    if (lastOdometer > 0) {
-        vehicleOdometerCache.set(vehicleId, lastOdometer);
-    }
-    
-    return lastOdometer;
+    return Math.max(lastFuelOdometer, lastTripOdometer);
 }
 
-
-async function getAllSubscriptions(): Promise<PushSubscription[]> {
-    const now = Date.now();
-    if (allSubscriptionsCache.timestamp && (now - allSubscriptionsCache.timestamp < CACHE_TTL_MS)) {
-        return allSubscriptionsCache.subs;
+/**
+ * Obtiene los detalles de un vehículo por su ID.
+ */
+async function getVehicleDetails(vehicleId: string): Promise<Vehicle | null> {
+    const vehicleSnap = await db.collection('vehicles').doc(vehicleId).get();
+    if (!vehicleSnap.exists) {
+        return null;
     }
+    return { id: vehicleSnap.id, ...vehicleSnap.data() } as Vehicle;
+}
+
+/**
+ * El handler principal de la función de Netlify.
+ */
+export const handler: Handler = async () => {
+  console.log('[Netlify Function] - checkReminders: Cron job triggered.');
+
+  if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
+     console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
+     return { statusCode: 500, body: 'VAPID keys are not set on the server.' };
+  }
+  
+  webpush.setVapidDetails(
+      'mailto:your-email@example.com',
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+  );
+
+  try {
+    // 1. Usar una collectionGroup query para obtener todos los recordatorios pendientes de una sola vez.
+    const remindersSnap = await db.collectionGroup('service_reminders').where('isCompleted', '==', false).get();
+    
+    if (remindersSnap.empty) {
+        return { statusCode: 200, body: 'No pending reminders found.' };
+    }
+
     const subscriptionsSnap = await db.collection('subscriptions').get();
     if (subscriptionsSnap.empty) {
-        allSubscriptionsCache.subs = [];
-        allSubscriptionsCache.timestamp = now;
-        return [];
+        return { statusCode: 200, body: 'No active push subscriptions.' };
     }
-    const subscriptions = subscriptionsSnap.docs.map(doc => doc.data().subscription as PushSubscription);
-    allSubscriptionsCache.subs = subscriptions;
-    allSubscriptionsCache.timestamp = now;
-    return subscriptions;
-}
+    const allSubscriptions = subscriptionsSnap.docs.map(doc => doc.data().subscription as PushSubscription);
 
-
-async function checkAndSendForVehicle(vehicle: Vehicle) {
     let notificationsSent = 0;
-    const lastOdometer = await getLatestOdometer(vehicle.id);
-    if (lastOdometer === 0) return notificationsSent;
-
-    const remindersSnap = await db.collection('vehicles').doc(vehicle.id).collection('service_reminders').where('isCompleted', '==', false).get();
-    if (remindersSnap.empty) return notificationsSent;
     
-    const pendingReminders = remindersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceReminder & { id: string }));
+    // 2. Procesar cada recordatorio encontrado.
+    for (const reminderDoc of remindersSnap.docs) {
+        const reminder = { id: reminderDoc.id, ...reminderDoc.data() } as ServiceReminder & { id: string };
+        const vehicleId = reminderDoc.ref.parent.parent?.id;
 
-    const subscriptions = await getAllSubscriptions();
-    if (subscriptions.length === 0) return notificationsSent;
+        if (!vehicleId) continue;
+        
+        const vehicle = await getVehicleDetails(vehicleId);
+        if (!vehicle) continue;
 
-    for (const reminder of pendingReminders) {
+        const lastOdometer = await getLatestOdometer(vehicleId);
+        if (lastOdometer === 0) continue;
+
         const kmsRemaining = reminder.dueOdometer ? reminder.dueOdometer - lastOdometer : null;
         const daysRemaining = reminder.dueDate ? differenceInDays(new Date(reminder.dueDate), new Date()) : null;
 
@@ -87,8 +102,8 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
             const lastSent = reminder.lastNotificationSent ? new Date(reminder.lastNotificationSent) : null;
             const hoursSinceLastSent = lastSent ? differenceInHours(new Date(), lastSent) : null;
 
-            if (lastSent && hoursSinceLastSent !== null && hoursSinceLastSent < NOTIFICATION_COOLDOWN_HOURS) {
-                console.log(`[Cron] Skipping notification for ${reminder.serviceType} for vehicle ${vehicle.make}. Cooldown active. Last sent: ${hoursSinceLastSent}h ago. Threshold: ${NOTIFICATION_COOLDOWN_HOURS}h.`);
+            if (hoursSinceLastSent !== null && hoursSinceLastSent < NOTIFICATION_COOLDOWN_HOURS) {
+                console.log(`[Cron] Skipping notification for "${reminder.serviceType}" on ${vehicle.make}. Cooldown active. Last sent: ${hoursSinceLastSent}h ago.`);
                 continue; // Saltar al siguiente recordatorio
             }
             
@@ -104,7 +119,7 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
             });
             
             let reminderSentToAtLeastOneDevice = false;
-            const sendPromises = subscriptions.map(subscription => 
+            const sendPromises = allSubscriptions.map(subscription => 
                 webpush.sendNotification(subscription, payload)
                 .then(() => {
                     reminderSentToAtLeastOneDevice = true;
@@ -123,51 +138,16 @@ async function checkAndSendForVehicle(vehicle: Vehicle) {
             await Promise.all(sendPromises);
 
             if (reminderSentToAtLeastOneDevice) {
-                console.log(`[Cron] Notification sent for ${reminder.serviceType} for vehicle ${vehicle.make}.`);
+                console.log(`[Cron] Notification sent for "${reminder.serviceType}" on vehicle ${vehicle.make}.`);
                 notificationsSent++;
-                await db.collection('vehicles').doc(vehicle.id).collection('service_reminders').doc(reminder.id).update({
+                await reminderDoc.ref.update({
                     lastNotificationSent: new Date().toISOString()
                 });
             }
         }
     }
-    return notificationsSent;
-}
-
-// The main function for the scheduled endpoint
-export const handler: Handler = async () => {
-  console.log('[Netlify Function] - checkReminders: Cron job triggered.');
-
-  if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-    webpush.setVapidDetails(
-        'mailto:your-email@example.com',
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-        process.env.VAPID_PRIVATE_KEY
-    );
-  } else {
-     console.error("[Cron] VAPID keys are not set. Cannot send push notifications.");
-     return { statusCode: 500, body: 'VAPID keys are not set on the server.' };
-  }
-
-  try {
-    const vehiclesSnap = await db.collection('vehicles').get();
-    if (vehiclesSnap.empty) {
-        return { statusCode: 200, body: 'No vehicles to check.' };
-    }
-
-    let totalNotificationsSent = 0;
-    const allVehicles = vehiclesSnap.docs.map(doc => ({id: doc.id, ...doc.data()} as Vehicle));
-
-    for (const vehicle of allVehicles) {
-      const count = await checkAndSendForVehicle(vehicle);
-      totalNotificationsSent += count;
-    }
     
-    vehicleOdometerCache.clear();
-    allSubscriptionsCache.subs = [];
-    allSubscriptionsCache.timestamp = null;
-
-    const successMessage = `Cron job completed. Processed ${totalNotificationsSent} notification events.`;
+    const successMessage = `Cron job completed. Processed ${notificationsSent} notification events.`;
     console.log(`[Netlify Function] - checkReminders: ${successMessage}`);
     return { statusCode: 200, body: successMessage };
 
