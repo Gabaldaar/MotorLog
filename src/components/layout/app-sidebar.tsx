@@ -1,13 +1,15 @@
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Car, Fuel, Menu, LogOut, Settings, Wrench, History, Route, Leaf, BarChart } from 'lucide-react';
+import { Car, Fuel, Menu, LogOut, Settings, Wrench, History, Route, BarChart } from 'lucide-react';
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import type { User } from '@/lib/types';
 import { doc } from 'firebase/firestore';
+import Image from 'next/image';
 
 import {
   SidebarContent,
@@ -85,7 +87,7 @@ export default function AppSidebar() {
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2">
-            <Leaf className="size-6 text-primary" />
+            <Image src="/icon-192x192.png" alt="MotorLog Logo" width={24} height={24} className="size-6" />
             <h1 className="font-headline text-xl font-semibold">MotorLog</h1>
         </div>
       </SidebarHeader>
