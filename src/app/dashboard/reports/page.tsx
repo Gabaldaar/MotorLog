@@ -132,8 +132,9 @@ export default function ReportsPage() {
     for (let i = 0; i < 12; i++) {
         const logsInMonth = logsInYear.filter(log => getMonth(new Date(log.date)) === i);
         if (logsInMonth.length > 1) {
-            const firstOdo = logsInMonth[0].odometer;
-            const lastOdo = logsInMonth[logsInMonth.length - 1].odometer;
+            const odometers = logsInMonth.map(log => log.odometer);
+            const firstOdo = Math.min(...odometers);
+            const lastOdo = Math.max(...odometers);
             monthlyData[i].km = lastOdo - firstOdo;
         } else if (logsInMonth.length === 1) {
             monthlyData[i].km = logsInMonth[0].distanceTraveled || 0;
