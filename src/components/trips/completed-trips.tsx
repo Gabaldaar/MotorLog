@@ -40,7 +40,6 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     }, [allFuelLogs]);
 
     const handleFetchRate = async () => {
-        // Only fetch if the field is empty
         if (exchangeRate !== null && exchangeRate > 0) {
             toast({
                 variant: 'default',
@@ -80,10 +79,24 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             const kmTraveled = stage.stageEndOdometer - lastOdometer;
             const otherExpenses = (stage.expenses || []).reduce((acc, exp) => acc + exp.amount, 0);
             
-            const stageTotalCost = (kmTraveled * detailedCostsARS.totalCostPerKm_ARS) + otherExpenses;
+            const stageFuelCost = kmTraveled * detailedCostsARS.fuelCostPerKm_ARS;
+            const stageVariableCost = kmTraveled * detailedCostsARS.variableCostPerKm_ARS;
+            const stageFixedCost = kmTraveled * detailedCostsARS.fixedCostPerKm_ARS;
+
+            const stageFuelPlusExpenses = stageFuelCost + otherExpenses;
+            const stageFuelPlusVariablePlusExpenses = stageFuelCost + stageVariableCost + otherExpenses;
+            const stageTotalRealCost = (kmTraveled * detailedCostsARS.totalCostPerKm_ARS) + otherExpenses;
 
             lastOdometer = stage.stageEndOdometer;
-            return { ...stage, kmTraveled, otherExpenses, stageTotalCost };
+            
+            return { 
+                ...stage, 
+                kmTraveled, 
+                otherExpenses, 
+                stageFuelPlusExpenses,
+                stageFuelPlusVariablePlusExpenses,
+                stageTotalRealCost,
+            };
         });
 
         const totalKm = processedStages.reduce((acc, stage) => acc + stage.kmTraveled, 0);
@@ -92,13 +105,10 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         const fixedCostForTrip = totalKm * detailedCostsARS.fixedCostPerKm_ARS;
         const variableCostForTrip = totalKm * detailedCostsARS.variableCostPerKm_ARS;
         const fuelCostForTrip = totalKm * detailedCostsARS.fuelCostPerKm_ARS;
-        const totalRealCostForTrip_CTR = totalKm * detailedCostsARS.totalCostPerKm_ARS;
         
-        const tripExpenses = totalOtherExpenses;
-
-        const fuelPlusExpenses = fuelCostForTrip + tripExpenses;
-        const fuelPlusVariablePlusExpenses = fuelCostForTrip + variableCostForTrip + tripExpenses;
-        const totalRealCostPlusExpenses = totalRealCostForTrip_CTR + tripExpenses;
+        const fuelPlusExpenses = fuelCostForTrip + totalOtherExpenses;
+        const fuelPlusVariablePlusExpenses = fuelCostForTrip + variableCostForTrip + totalOtherExpenses;
+        const totalRealCostPlusExpenses = (totalKm * detailedCostsARS.totalCostPerKm_ARS) + totalOtherExpenses;
 
         let duration = "N/A";
         if (trip.stages && trip.stages.length > 0 && trip.startDate) {
@@ -112,10 +122,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             processedStages, 
             totalKm, 
             duration, 
-            fixedCostForTrip,
-            variableCostForTrip,
-            fuelCostForTrip,
-            tripExpenses,
+            tripExpenses: totalOtherExpenses,
             fuelPlusExpenses,
             fuelPlusVariablePlusExpenses,
             totalRealCostPlusExpenses,
@@ -128,9 +135,6 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         processedStages,
         totalKm,
         duration,
-        fixedCostForTrip,
-        variableCostForTrip,
-        fuelCostForTrip,
         tripExpenses,
         fuelPlusExpenses,
         fuelPlusVariablePlusExpenses,
@@ -173,14 +177,8 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                     <ChevronsRight className="h-5 w-5" />
                                     Etapa {index + 1}: {stage.kmTraveled.toLocaleString()} km
                                 </p>
-                                {exchangeRate && stage.stageTotalCost > 0 && (
-                                     <div className="text-right">
-                                        <p className="font-bold text-primary">{formatCurrency(stage.stageTotalCost)}</p>
-                                        <p className="text-xs text-muted-foreground">Costo Total Etapa</p>
-                                    </div>
-                                )}
                             </div>
-                            <div className="pl-4 mt-2 space-y-1">
+                            <div className="pl-7 mt-2 space-y-2">
                                 {stage.notes && <p className="text-xs italic text-muted-foreground">Notas: {stage.notes}</p>}
                                 {(stage.expenses && stage.expenses.length > 0) && (
                                     <div className="pt-1 text-xs">
@@ -195,6 +193,13 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                         </ul>
                                     </div>
                                 )}
+                                {exchangeRate && (
+                                    <div className="pt-2 border-t border-muted/50 mt-2 text-xs space-y-1">
+                                      <div className="flex justify-between"><span className="text-muted-foreground">CCxKmR + GV:</span> <span className="font-medium">{formatCurrency(stage.stageFuelPlusExpenses)}</span></div>
+                                      <div className="flex justify-between"><span className="text-muted-foreground">CCxKmR + CVxKmR + GV:</span> <span className="font-medium">{formatCurrency(stage.stageFuelPlusVariablePlusExpenses)}</span></div>
+                                      <div className="flex justify-between font-semibold text-primary"><span className="text-primary/80">CTR x KmR + GV (Total Real):</span> <span>{formatCurrency(stage.stageTotalRealCost)}</span></div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -204,7 +209,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             <Separator />
             
             <div className="space-y-4">
-                 <p className="text-sm font-medium">Cálculos de Costo Total (ARS)</p>
+                 <p className="text-sm font-medium">Cálculos de Costo Total del Viaje (ARS)</p>
                  <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                      <div className="w-full sm:w-auto">
                         <Label htmlFor={`exchange-rate-${trip.id}`} className="text-xs text-muted-foreground">Tipo de Cambio (1 USD a ARS)</Label>
@@ -238,7 +243,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                             <p className="font-semibold text-lg">{formatCurrency(fuelPlusVariablePlusExpenses)}</p>
                         </div>
                             <div className="p-3 rounded-lg border">
-                            <p className="text-xs text-muted-foreground">CTR/km (CF+CV+CC)</p>
+                            <p className="text-xs text-muted-foreground">CTR/km</p>
                             <p className="font-semibold text-lg">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS || 0)}</p>
                         </div>
                         <div className="p-3 rounded-lg border border-primary/50 bg-primary/10">
@@ -278,7 +283,6 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: Complete
   }
 
   const getTripSummary = (trip: Trip) => {
-    // FIX: Handle old trips without stages array.
     if (!trip.stages || trip.stages.length === 0) {
       // @ts-ignore - endOdometer might not exist on new Trip type, but does on old data
       const distance = (trip.endOdometer || trip.startOdometer) - trip.startOdometer;
@@ -331,4 +335,3 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: Complete
     </Card>
   );
 }
-
