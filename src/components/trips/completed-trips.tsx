@@ -114,6 +114,8 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
 
         const totalKm = processedStages.reduce((acc, stage) => acc + stage.kmTraveled, 0);
         const totalOtherExpenses = processedStages.reduce((acc, stage) => acc + stage.otherExpenses, 0);
+        const allTripExpenses = processedStages.flatMap(stage => stage.expenses || []);
+
 
         const fixedCostForTrip = totalKm * detailedCostsARS.fixedCostPerKm_ARS;
         const variableCostForTrip = totalKm * detailedCostsARS.variableCostPerKm_ARS;
@@ -136,6 +138,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             totalKm, 
             duration, 
             tripExpenses: totalOtherExpenses,
+            allTripExpenses,
             fuelPlusExpenses,
             fuelPlusVariablePlusExpenses,
             totalRealCostPlusExpenses,
@@ -152,6 +155,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         totalKm,
         duration,
         tripExpenses,
+        allTripExpenses,
         fuelPlusExpenses,
         fuelPlusVariablePlusExpenses,
         totalRealCostPlusExpenses,
@@ -213,10 +217,25 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                     </div>
                                 )}
                                 {exchangeRate && (
-                                    <div className="pt-2 border-t border-muted/50 mt-2 text-xs space-y-1">
-                                      <div className="flex justify-between"><span className="text-muted-foreground">CCxKmR + GV:</span> <span className="font-medium">{formatCurrency(stage.stageFuelPlusExpenses)}</span></div>
-                                      <div className="flex justify-between"><span className="text-muted-foreground">CCxKmR + CVxKmR + GV:</span> <span className="font-medium">{formatCurrency(stage.stageFuelPlusVariablePlusExpenses)}</span></div>
-                                      <div className="flex justify-between font-semibold text-primary"><span className="text-primary/80">CTR x KmR + GV (Total Real):</span> <span>{formatCurrency(stage.stageTotalRealCost)}</span></div>
+                                     <div className="pt-2 border-t border-muted/50 mt-2 text-xs space-y-2">
+                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                            <div className="p-2 rounded bg-background/50">
+                                                <p className="font-semibold text-muted-foreground">CCxKmR + GV</p>
+                                                <p className="font-medium">{formatCurrency(stage.stageFuelPlusExpenses)}</p>
+                                            </div>
+                                            <div className="p-2 rounded bg-background/50">
+                                                <p className="font-semibold text-muted-foreground">CCxKmR + CVxKmR + GV</p>
+                                                <p className="font-medium">{formatCurrency(stage.stageFuelPlusVariablePlusExpenses)}</p>
+                                            </div>
+                                             <div className="p-2 rounded bg-background/50">
+                                                <p className="font-semibold text-muted-foreground">CTR/km</p>
+                                                <p className="font-medium">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS)}</p>
+                                            </div>
+                                             <div className="p-2 rounded bg-primary/10 border border-primary/20">
+                                                <p className="font-semibold text-primary/90">CTR x KmR + GV (Total Real)</p>
+                                                <p className="font-bold text-primary">{formatCurrency(stage.stageTotalRealCost)}</p>
+                                            </div>
+                                         </div>
                                     </div>
                                 )}
                             </div>
@@ -253,7 +272,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                     </p>
                 ) : (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
                             <div className="p-2 rounded bg-muted/30">
                                 <p className="font-semibold text-muted-foreground">C. Fijos (CF)</p>
                                 <div className="flex justify-between"><span>CF/km:</span> <span>{formatCurrency(detailedCostsARS.fixedCostPerKm_ARS)}</span></div>
@@ -268,6 +287,23 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                 <p className="font-semibold text-muted-foreground">C. Combustible (CC)</p>
                                 <div className="flex justify-between"><span>CC/km:</span> <span>{formatCurrency(detailedCostsARS.fuelCostPerKm_ARS)}</span></div>
                                 <div className="flex justify-between"><span>CC x KmR:</span> <span>{formatCurrency(fuelCostForTrip)}</span></div>
+                            </div>
+                            <div className="p-2 rounded bg-muted/30">
+                                <p className="font-semibold text-muted-foreground">Gastos Viaje (GV)</p>
+                                {allTripExpenses.length > 0 ? (
+                                    <div className="max-h-24 overflow-y-auto">
+                                        {allTripExpenses.map((expense, i) => (
+                                            <div key={i} className="flex justify-between">
+                                                <span className="truncate pr-2">{expense.description}</span>
+                                                <span>{formatCurrency(expense.amount)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-between"><span>Total:</span> <span>{formatCurrency(0)}</span></div>
+                                )}
+                                <Separator className="my-1 bg-muted-foreground/20" />
+                                <div className="flex justify-between font-medium"><span>Total GV:</span> <span>{formatCurrency(tripExpenses)}</span></div>
                             </div>
                         </div>
 
@@ -374,5 +410,6 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: Complete
     </Card>
   );
 }
+
 
 
