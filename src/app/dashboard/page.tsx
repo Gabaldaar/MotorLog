@@ -52,6 +52,10 @@ export default function DashboardPage() {
   
   const vehicleFuelLogs = useMemo(() => processFuelLogs(allFuelLogsData || []), [allFuelLogsData]);
   
+  const fuelConsumptionChartData = useMemo(() => {
+    return [...vehicleFuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [vehicleFuelLogs]);
+
   const avgConsumption = useMemo(() => {
     if (!vehicleFuelLogs || vehicleFuelLogs.length === 0) {
       return vehicle?.averageConsumptionKmPerLiter || 0;
@@ -197,7 +201,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3">
-          <FuelConsumptionChart data={vehicleFuelLogs} />
+          <FuelConsumptionChart data={fuelConsumptionChartData} />
         </div>
         <div className="lg:col-span-2">
            <RecentFuelLogs data={vehicleFuelLogs.slice(0, 5)} />
