@@ -87,8 +87,15 @@ export default function TripsPage() {
       if (trip.status === 'active') {
         active.push(trip);
       } else {
-        if (trip.endDate) {
-           const tripEndDate = new Date(trip.endDate);
+        const hasStages = trip.stages && trip.stages.length > 0;
+        // @ts-ignore - Support for old trips without stages
+        const legacyEndDate = trip.endDate;
+        const finalStageEndDate = hasStages ? trip.stages[trip.stages.length - 1].stageEndDate : null;
+        
+        const tripEndDateString = finalStageEndDate || legacyEndDate;
+
+        if (tripEndDateString) {
+           const tripEndDate = new Date(tripEndDateString);
            if ((!from || tripEndDate >= from) && (!to || tripEndDate <= to)) {
               completed.push(trip);
            }
