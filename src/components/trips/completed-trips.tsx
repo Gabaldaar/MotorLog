@@ -5,7 +5,7 @@
 import type { Trip, ProcessedFuelLog, Vehicle, TripStage } from '@/lib/types';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Map, Edit, Trash2, Clock, Wallet, Route, User, Wand2, Loader2, DollarSign, ChevronsRight } from 'lucide-react';
+import { Map, Edit, Trash2, Clock, Wallet, Route, User, Wand2, Loader2, DollarSign, ChevronsRight, Calculator } from 'lucide-react';
 import { formatDateTime, formatCurrency, parseCurrency } from '@/lib/utils';
 import AddTripDialog from '../dashboard/add-trip-dialog';
 import { Button } from '../ui/button';
@@ -40,6 +40,16 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     }, [allFuelLogs]);
 
     const handleFetchRate = async () => {
+        // Only fetch if the field is empty
+        if (exchangeRate !== null && exchangeRate > 0) {
+            toast({
+                variant: 'default',
+                title: 'Valor existente',
+                description: 'El campo de tipo de cambio ya tiene un valor. Para buscar uno nuevo, primero borra el valor actual.',
+            });
+            return;
+        }
+
         setIsFetchingRate(true);
         try {
             const rateData = await getOfficialDolarRate();
@@ -69,14 +79,16 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         const processedStages = (trip.stages || []).map(stage => {
             const kmTraveled = stage.stageEndOdometer - lastOdometer;
             const otherExpenses = (stage.expenses || []).reduce((acc, exp) => acc + exp.amount, 0);
+            
+            const stageTotalCost = (kmTraveled * detailedCostsARS.totalCostPerKm_ARS) + otherExpenses;
+
             lastOdometer = stage.stageEndOdometer;
-            return { ...stage, kmTraveled, otherExpenses };
+            return { ...stage, kmTraveled, otherExpenses, stageTotalCost };
         });
 
         const totalKm = processedStages.reduce((acc, stage) => acc + stage.kmTraveled, 0);
         const totalOtherExpenses = processedStages.reduce((acc, stage) => acc + stage.otherExpenses, 0);
 
-        // Perform calculations as per user's new logic
         const fixedCostForTrip = totalKm * detailedCostsARS.fixedCostPerKm_ARS;
         const variableCostForTrip = totalKm * detailedCostsARS.variableCostPerKm_ARS;
         const fuelCostForTrip = totalKm * detailedCostsARS.fuelCostPerKm_ARS;
@@ -156,10 +168,18 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                 <div className="space-y-3">
                     {processedStages.map((stage, index) => (
                         <div key={stage.id} className="p-3 rounded-lg bg-muted/40 border text-sm">
+                            <div className="flex justify-between items-start">
                                 <p className="font-semibold text-primary flex items-center gap-2">
-                                <ChevronsRight className="h-5 w-5" />
-                                Etapa {index + 1}: {stage.kmTraveled.toLocaleString()} km
-                            </p>
+                                    <ChevronsRight className="h-5 w-5" />
+                                    Etapa {index + 1}: {stage.kmTraveled.toLocaleString()} km
+                                </p>
+                                {exchangeRate && stage.stageTotalCost > 0 && (
+                                     <div className="text-right">
+                                        <p className="font-bold text-primary">{formatCurrency(stage.stageTotalCost)}</p>
+                                        <p className="text-xs text-muted-foreground">Costo Total Etapa</p>
+                                    </div>
+                                )}
+                            </div>
                             <div className="pl-4 mt-2 space-y-1">
                                 {stage.notes && <p className="text-xs italic text-muted-foreground">Notas: {stage.notes}</p>}
                                 {(stage.expenses && stage.expenses.length > 0) && (
@@ -218,7 +238,7 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                             <p className="font-semibold text-lg">{formatCurrency(fuelPlusVariablePlusExpenses)}</p>
                         </div>
                             <div className="p-3 rounded-lg border">
-                            <p className="text-xs text-muted-foreground">CTR/Km (CF+CV+CC)</p>
+                            <p className="text-xs text-muted-foreground">CTR/km (CF+CV+CC)</p>
                             <p className="font-semibold text-lg">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS || 0)}</p>
                         </div>
                         <div className="p-3 rounded-lg border border-primary/50 bg-primary/10">
@@ -311,3 +331,4 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: Complete
     </Card>
   );
 }
+
