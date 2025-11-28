@@ -63,36 +63,30 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
         const fallbackConsumption = vehicle.averageConsumptionKmPerLiter > 0 ? vehicle.averageConsumptionKmPerLiter : 1;
         const lastPricePerLiter = lastFuelLog?.pricePerLiter || 0;
         const { costPerKmUSD, fuelCostPerKmARS } = calculateCostsPerKm(vehicle, fallbackConsumption, lastPricePerLiter);
+        const detailedCostsARS = calculateTotalCostInARS(costPerKmUSD, fuelCostPerKmARS, exchangeRate);
         
         let lastOdometer = trip.startOdometer;
         const processedStages = (trip.stages || []).map(stage => {
             const kmTraveled = stage.stageEndOdometer - lastOdometer;
             const otherExpenses = (stage.expenses || []).reduce((acc, exp) => acc + exp.amount, 0);
-
-            const detailedCostsARS = calculateTotalCostInARS(costPerKmUSD, fuelCostPerKmARS, exchangeRate);
-            
-            const fixedCostForStage = kmTraveled * detailedCostsARS.fixedCostPerKm_ARS;
-            const variableCostForStage = kmTraveled * detailedCostsARS.variableCostPerKm_ARS;
-            const fuelCostForStage = kmTraveled * detailedCostsARS.fuelCostPerKm_ARS;
-            const totalRealCostForStage = kmTraveled * detailedCostsARS.totalCostPerKm_ARS + otherExpenses;
-            
             lastOdometer = stage.stageEndOdometer;
-
-            return {
-                ...stage,
-                kmTraveled,
-                otherExpenses,
-                fixedCostForStage,
-                variableCostForStage,
-                fuelCostForStage,
-                totalRealCostForStage,
-                detailedCostsARS,
-            };
+            return { ...stage, kmTraveled, otherExpenses };
         });
 
-        const totalKmCorrect = processedStages.reduce((acc, stage) => acc + stage.kmTraveled, 0);
-        const totalExpenses = processedStages.reduce((acc, stage) => acc + stage.otherExpenses, 0);
-        const totalRealCost = processedStages.reduce((acc, stage) => acc + stage.totalRealCostForStage, 0);
+        const totalKm = processedStages.reduce((acc, stage) => acc + stage.kmTraveled, 0);
+        const totalOtherExpenses = processedStages.reduce((acc, stage) => acc + stage.otherExpenses, 0);
+
+        // Perform calculations as per user's new logic
+        const fixedCostForTrip = totalKm * detailedCostsARS.fixedCostPerKm_ARS;
+        const variableCostForTrip = totalKm * detailedCostsARS.variableCostPerKm_ARS;
+        const fuelCostForTrip = totalKm * detailedCostsARS.fuelCostPerKm_ARS;
+        const totalRealCostForTrip_CTR = totalKm * detailedCostsARS.totalCostPerKm_ARS;
+        
+        const tripExpenses = totalOtherExpenses;
+
+        const fuelPlusExpenses = fuelCostForTrip + tripExpenses;
+        const fuelPlusVariablePlusExpenses = fuelCostForTrip + variableCostForTrip + tripExpenses;
+        const totalRealCostPlusExpenses = totalRealCostForTrip_CTR + tripExpenses;
 
         let duration = "N/A";
         if (trip.stages && trip.stages.length > 0 && trip.startDate) {
@@ -102,49 +96,74 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
             duration = `${hours}h ${minutes}m`;
         }
 
-        return { processedStages, totalKm: totalKmCorrect, totalExpenses, totalRealCost, duration };
+        return { 
+            processedStages, 
+            totalKm, 
+            duration, 
+            fixedCostForTrip,
+            variableCostForTrip,
+            fuelCostForTrip,
+            tripExpenses,
+            fuelPlusExpenses,
+            fuelPlusVariablePlusExpenses,
+            totalRealCostPlusExpenses,
+            detailedCostsARS,
+        };
 
     }, [trip, vehicle, allFuelLogs, exchangeRate, lastFuelLog]);
 
-    const { processedStages } = tripCalculations;
+    const { 
+        processedStages,
+        totalKm,
+        duration,
+        fixedCostForTrip,
+        variableCostForTrip,
+        fuelCostForTrip,
+        tripExpenses,
+        fuelPlusExpenses,
+        fuelPlusVariablePlusExpenses,
+        totalRealCostPlusExpenses,
+        detailedCostsARS
+     } = tripCalculations;
     const lastOdometerInTrip = (trip.stages && trip.stages.length > 0) ? trip.stages[trip.stages.length-1].stageEndOdometer : trip.startOdometer;
 
     return (
         <div className="space-y-4 pt-4 border-t pl-4 sm:pl-12">
-            <div className="space-y-4">
-                 {processedStages.map((stage, index) => {
-                     const previousOdometer = index > 0 ? processedStages[index-1].stageEndOdometer : trip.startOdometer;
-                     const previousDate = index > 0 ? processedStages[index-1].stageEndDate : trip.startDate;
-                     const hours = differenceInHours(new Date(stage.stageEndDate), new Date(previousDate));
-                     const minutes = differenceInMinutes(new Date(stage.stageEndDate), new Date(previousDate)) % 60;
-                     const stageDuration = `${hours}h ${minutes}m`;
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                    <Route className="h-4 w-4 text-muted-foreground" />
+                    <div><p className="font-medium">{totalKm.toLocaleString()} km</p><p className="text-xs text-muted-foreground">Distancia Total</p></div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div><p className="font-medium">{duration}</p><p className="text-xs text-muted-foreground">Duración Total</p></div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <div><p className="font-medium">{formatCurrency(tripExpenses)}</p><p className="text-xs text-muted-foreground">Gastos del Viaje (GV)</p></div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <div><p className="font-medium">{trip.username}</p><p className="text-xs text-muted-foreground">Conductor</p></div>
+                </div>
+            </div>
+            {trip.notes && <p className="text-xs italic text-muted-foreground">Notas Generales: {trip.notes}</p>}
 
-                    return (
-                        <div key={stage.id} className="p-3 rounded-lg bg-muted/40 border">
-                             <p className="font-semibold text-primary flex items-center gap-2">
+            <Separator />
+
+            <div>
+                <p className="text-sm font-medium mb-2">Detalle de Etapas</p>
+                <div className="space-y-3">
+                    {processedStages.map((stage, index) => (
+                        <div key={stage.id} className="p-3 rounded-lg bg-muted/40 border text-sm">
+                                <p className="font-semibold text-primary flex items-center gap-2">
                                 <ChevronsRight className="h-5 w-5" />
                                 Etapa {index + 1}: {stage.kmTraveled.toLocaleString()} km
                             </p>
-                            <div className="pl-4 mt-2 space-y-3">
-                               <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                            <p className="font-medium">{stageDuration}</p>
-                                            <p className="text-xs text-muted-foreground">Duración Etapa</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Wallet className="h-4 w-4 text-muted-foreground" />
-                                        <div>
-                                            <p className="font-medium">{formatCurrency(stage.totalRealCostForStage)}</p>
-                                            <p className="text-xs text-muted-foreground">Costo Total Etapa</p>
-                                        </div>
-                                    </div>
-                               </div>
-                               {stage.notes && <p className="text-xs italic text-muted-foreground">Notas: {stage.notes}</p>}
-                               {(stage.expenses && stage.expenses.length > 0) && (
-                                    <div className="pt-2 text-xs">
+                            <div className="pl-4 mt-2 space-y-1">
+                                {stage.notes && <p className="text-xs italic text-muted-foreground">Notas: {stage.notes}</p>}
+                                {(stage.expenses && stage.expenses.length > 0) && (
+                                    <div className="pt-1 text-xs">
                                         <p className="font-medium">Gastos de la Etapa:</p>
                                         <ul className="text-muted-foreground list-disc pl-5 mt-1">
                                             {stage.expenses.map((expense, i) => (
@@ -158,18 +177,21 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                                 )}
                             </div>
                         </div>
-                    )
-                 })}
+                    ))}
+                </div>
             </div>
 
-            <div className="pt-4 border-t space-y-4">
-                <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+            <Separator />
+            
+            <div className="space-y-4">
+                 <p className="text-sm font-medium">Cálculos de Costo Total (ARS)</p>
+                 <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
                      <div className="w-full sm:w-auto">
-                        <Label htmlFor={`exchange-rate-${trip.id}`} className="text-xs text-muted-foreground">Tipo de Cambio (Guardado)</Label>
+                        <Label htmlFor={`exchange-rate-${trip.id}`} className="text-xs text-muted-foreground">Tipo de Cambio (1 USD a ARS)</Label>
                         <Input 
                             id={`exchange-rate-${trip.id}`}
                             type="text" 
-                            placeholder="Sin valor guardado"
+                            placeholder="Sin valor"
                             value={exchangeRate !== null ? exchangeRate.toLocaleString('es-AR') : ''}
                             onChange={(e) => setExchangeRate(parseCurrency(e.target.value))}
                             className="h-9"
@@ -177,9 +199,35 @@ function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
                     </div>
                     <Button onClick={handleFetchRate} disabled={isFetchingRate} variant="outline" size="sm" className="w-full sm:w-auto mt-4 sm:mt-0">
                         {isFetchingRate ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4" />}
-                        Usar Cambio Actual
+                        Usar Actual
                     </Button>
                 </div>
+
+                {!exchangeRate ? (
+                    <p className="text-xs text-muted-foreground text-center p-4 bg-muted/40 rounded-md">
+                        Ingresa un tipo de cambio para ver los costos totales.
+                    </p>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-3 rounded-lg border">
+                            <p className="text-xs text-muted-foreground">CC x KmR + GV</p>
+                            <p className="font-semibold text-lg">{formatCurrency(fuelPlusExpenses)}</p>
+                        </div>
+                            <div className="p-3 rounded-lg border">
+                            <p className="text-xs text-muted-foreground">CC x KmR + CV x KmR + GV</p>
+                            <p className="font-semibold text-lg">{formatCurrency(fuelPlusVariablePlusExpenses)}</p>
+                        </div>
+                            <div className="p-3 rounded-lg border">
+                            <p className="text-xs text-muted-foreground">CTR/Km (CF+CV+CC)</p>
+                            <p className="font-semibold text-lg">{formatCurrency(detailedCostsARS.totalCostPerKm_ARS || 0)}</p>
+                        </div>
+                        <div className="p-3 rounded-lg border border-primary/50 bg-primary/10">
+                            <p className="text-xs text-primary/80">CTR x KmR + GV (Costo Total Real)</p>
+                            <p className="font-semibold text-lg text-primary">{formatCurrency(totalRealCostPlusExpenses)}</p>
+                        </div>
+                    </div>
+                )}
+
             </div>
 
              <div className="flex gap-2 pt-4 border-t">
