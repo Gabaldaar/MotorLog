@@ -210,7 +210,14 @@ export default function CompletedTrips({ trips, vehicle, allFuelLogs }: Complete
   }
 
   const getTripSummary = (trip: Trip) => {
-    if (!trip.stages || trip.stages.length === 0) return { distance: 0, endDate: trip.startDate };
+    // FIX: Handle old trips without stages array.
+    if (!trip.stages || trip.stages.length === 0) {
+      // @ts-ignore - endOdometer might not exist on new Trip type, but does on old data
+      const distance = (trip.endOdometer || trip.startOdometer) - trip.startOdometer;
+      // @ts-ignore
+      const endDate = trip.endDate || trip.startDate;
+      return { distance, endDate };
+    }
     const lastStage = trip.stages[trip.stages.length - 1];
     const distance = lastStage.stageEndOdometer - trip.startOdometer;
     const endDate = lastStage.stageEndDate;

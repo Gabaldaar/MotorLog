@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Loader2, Plus, Trash2, Wand2, Flag, Route, ChevronsRight } from 'lucide-react';
@@ -151,7 +151,8 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: trip?.status || 'active',
         stages: trip?.stages?.map(s => ({
             ...s,
-            expenses: s.expenses.map(e => ({description: e.description, amount: toLocaleString(e.amount)}))
+            stageEndDate: toDateTimeLocalString(new Date(s.stageEndDate)),
+            expenses: s.expenses?.map(e => ({description: e.description, amount: toLocaleString(e.amount)})) || []
         })) || [],
         exchangeRate: toLocaleString(trip?.exchangeRate),
       });
@@ -224,11 +225,15 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
         status: values.status,
         stages: values.stages?.map(s => ({
             ...s,
+            stageEndDate: new Date(s.stageEndDate).toISOString(),
             expenses: s.expenses?.map(e => ({description: e.description, amount: parseCurrency(e.amount)})) || []
         })) || [],
         startDate: new Date(values.startDate).toISOString(),
-        exchangeRate: values.exchangeRate ? parseCurrency(values.exchangeRate) : undefined,
     };
+    
+    if (values.exchangeRate) {
+        tripData.exchangeRate = parseCurrency(values.exchangeRate);
+    }
 
     setDocumentNonBlocking(tripRef, tripData, { merge: true });
 
@@ -324,7 +329,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                             </div>
                         )
                      })}
-                     {trip?.status !== 'completed' && (
+                     {(trip?.status !== 'completed' || fields.length === 0) && (
                         <div className="flex flex-col sm:flex-row gap-2">
                             <Button type="button" variant="secondary" className="w-full" onClick={handleAddStage}>
                                 <ChevronsRight className="mr-2 h-4 w-4" /> Añadir Etapa
@@ -334,7 +339,7 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                             </Button>
                         </div>
                      )}
-                     {fields.length === 0 && trip?.status !== 'completed' && <p className="text-xs text-muted-foreground text-center">Añade etapas a tu viaje o finalízalo.</p>}
+                     {fields.length === 0 && trip?.status === 'active' && <p className="text-xs text-muted-foreground text-center">Añade etapas a tu viaje o finalízalo.</p>}
 
                   </div>
               </div>
