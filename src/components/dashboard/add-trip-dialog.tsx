@@ -137,10 +137,32 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
   
   const lastStageOdometer = stages && stages.length > 0 ? stages[stages.length - 1].stageEndOdometer : startOdometer;
 
+  const handleFetchRate = async () => {
+    setIsFetchingRate(true);
+    try {
+        const rateData = await getOfficialDolarRate();
+        setValue('exchangeRate', rateData.rate.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }), { shouldValidate: true });
+        toast({
+            title: 'Cotización Obtenida',
+            description: `Dólar Oficial (Vendedor): ${formatCurrency(rateData.rate)}`,
+        });
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Error al obtener cotización',
+            description: error.message,
+        });
+    } finally {
+        setIsFetchingRate(false);
+    }
+  };
+
   useEffect(() => {
     if (open) {
       const now = toDateTimeLocalString(new Date());
       const toLocaleString = (num: number | undefined) => num?.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '';
+
+      const tripExchangeRate = trip?.exchangeRate;
 
       reset({
         tripType: trip?.tripType || '',
@@ -154,11 +176,16 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
             stageEndDate: toDateTimeLocalString(new Date(s.stageEndDate)),
             expenses: s.expenses?.map(e => ({description: e.description, amount: toLocaleString(e.amount)})) || []
         })) || [],
-        exchangeRate: toLocaleString(trip?.exchangeRate),
+        exchangeRate: tripExchangeRate ? toLocaleString(tripExchangeRate) : '',
       });
+
+      if (isEditing && (!tripExchangeRate || tripExchangeRate === 0)) {
+        handleFetchRate();
+      }
+
       setActiveStage(null);
     }
-  }, [open, trip, reset, lastOdometer]);
+  }, [open, trip, reset, lastOdometer, isEditing, setValue]);
   
   const handleAddStage = async () => {
     const isFieldsValid = await trigger(["tripType", "destination", "startOdometer", "startDate"]);
@@ -233,6 +260,8 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
     
     if (values.exchangeRate) {
         tripData.exchangeRate = parseCurrency(values.exchangeRate);
+    } else {
+        tripData.exchangeRate = undefined;
     }
 
     setDocumentNonBlocking(tripRef, tripData, { merge: true });
@@ -342,6 +371,34 @@ export default function AddTripDialog({ vehicleId, trip, children, lastOdometer 
                      {fields.length === 0 && trip?.status === 'active' && <p className="text-xs text-muted-foreground text-center">Añade etapas a tu viaje o finalízalo.</p>}
 
                   </div>
+
+                  {isEditing && (
+                    <>
+                      <Separator />
+                      <FormField
+                          control={form.control}
+                          name="exchangeRate"
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Tipo de Cambio (Opcional)</FormLabel>
+                              <div className="flex items-center gap-2">
+                                  <FormControl>
+                                  <Input type="text" placeholder="1 USD = ??? ARS" {...field} value={field.value ?? ''} />
+                                  </FormControl>
+                                  <Button type="button" variant="outline" size="icon" onClick={handleFetchRate} disabled={isFetchingRate}>
+                                      {isFetchingRate ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                                      <span className="sr-only">Obtener cotización actual</span>
+                                  </Button>
+                              </div>
+                              <FormDescription>
+                                  Ingresa el tipo de cambio a dólar del día del gasto para un cálculo preciso del costo real.
+                              </FormDescription>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                    </>
+                  )}
               </div>
             </div>
 
