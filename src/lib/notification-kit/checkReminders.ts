@@ -1,4 +1,3 @@
-
 // netlify/functions/checkReminders.ts
 'use server';
 
@@ -25,7 +24,7 @@ interface NotificationTriggerData {
   docPath: string;
 }
 
-// --- FIREBASE ADMIN INITIALIZATION (CORRECTED FOR NETLIFY) ---
+// --- FIREBASE ADMIN INITIALIZATION (ROBUST VERSION) ---
 try {
   if (!admin.apps.length) {
     const serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -37,19 +36,25 @@ try {
     try {
       serviceAccount = JSON.parse(serviceAccountString);
     } catch (e) {
-      throw new Error('No se pudo parsear FIREBASE_SERVICE_ACCOUNT_KEY. Asegúrate de que sea un JSON válido.');
+      console.error('Error al parsear FIREBASE_SERVICE_ACCOUNT_KEY. Contenido:', serviceAccountString);
+      throw new Error('No se pudo parsear FIREBASE_SERVICE_ACCOUNT_KEY. Asegúrate de que sea un JSON válido y no una ruta de archivo.');
     }
+
+    if (!serviceAccount.project_id) {
+        throw new Error('El JSON de la clave de servicio no contiene un "project_id".');
+    }
+
+    console.log(`[Firebase Admin] Intentando inicializar para el proyecto: ${serviceAccount.project_id}`);
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
+      projectId: serviceAccount.project_id, // Especificar explícitamente el ID del proyecto
     });
+
     console.log('[Firebase Admin] Inicializado correctamente a través de la clave de servicio.');
   }
 } catch (error: any) {
-  // Catch initialization errors and log them clearly.
-  // This prevents the function from running with a broken config.
   console.error('[Firebase Admin] La inicialización falló catastróficamente:', error.message);
-  // We throw the error again to ensure the function execution stops.
   throw error;
 }
 
@@ -173,11 +178,18 @@ export const handler: Handler = async () => {
      return { statusCode: 500, body: 'VAPID keys are not set on the server.' };
   }
 
-  webpush.setVapidDetails(
-      'mailto:your-email@example.com', // Reemplaza con tu email
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-      process.env.VAPID_PRIVATE_KEY
-  );
+  try {
+    webpush.setVapidDetails(
+        'mailto:your-email@example.com', // Reemplaza con tu email
+        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+    console.log('[CRON] VAPID details set.');
+  } catch(e: any) {
+      console.error('[CRON] Error setting VAPID details:', e.message);
+      return { statusCode: 500, body: `VAPID configuration error: ${e.message}` };
+  }
+
 
   try {
     const totalNotificationsSent = await checkAndSendNotifications();
@@ -187,7 +199,7 @@ export const handler: Handler = async () => {
 
   } catch (error: any) {
     console.error('[Netlify Function] - checkReminders: Error during execution:', error);
-    return { statusCode: 500, body: `Internal server error: ${error.message}` };
+    // Devolvemos el mensaje de error para que sea visible en FastCron
+    return { statusCode: 500, body: `Internal Server Error: ${error.message}` };
   }
 }
-
