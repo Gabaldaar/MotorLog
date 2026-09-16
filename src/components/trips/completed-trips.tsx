@@ -19,13 +19,13 @@ import { Separator } from '../ui/separator';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 
-interface TripDetailsProps {
+export interface TripDetailsProps {
     trip: Trip;
     vehicle: Vehicle;
     allFuelLogs: ProcessedFuelLog[];
 }
 
-function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
+export function TripDetails({ trip, vehicle, allFuelLogs }: TripDetailsProps) {
     const { toast } = useToast();
     const [exchangeRate, setExchangeRate] = useState<number | null>(trip.exchangeRate || null);
     const [isFetchingRate, setIsFetchingRate] = useState(false);

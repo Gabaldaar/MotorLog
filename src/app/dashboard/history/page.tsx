@@ -38,12 +38,12 @@ import { usePreferences } from '@/context/preferences-context';
 import { differenceInDays, differenceInHours, differenceInMinutes, startOfDay, endOfDay, subDays } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import AddTripDialog from '@/components/dashboard/add-trip-dialog';
-import DeleteTripDialog from '@/components/trips/delete-trip-dialog';
 import { DateRangePicker } from '@/components/reports/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import EstimatedRefuelCard from '@/components/dashboard/estimated-refuel-card';
 import { Loader2 } from 'lucide-react';
 import { processFuelLogs } from '@/lib/vehicle-calculations';
+import { TripDetails } from '@/components/trips/completed-trips';
 
 type TimelineHistoryItem = {
     type: 'fuel' | 'service' | 'trip' | 'missed-log';
@@ -176,11 +176,20 @@ export default function HistoryPage() {
     });
 
     (trips || []).forEach(trip => {
-      if (trip.status === 'completed' && trip.stages?.length > 0) {
-        const lastStage = trip.stages[trip.stages.length - 1];
-        if (!from || !to || (new Date(lastStage.stageEndDate) >= from && new Date(lastStage.stageEndDate) <= to)) {
-            combined.push({ type: 'trip', sortKey: lastStage.stageEndOdometer, date: lastStage.stageEndDate, data: trip });
-         }
+      if (trip.status === 'completed') {
+        const hasStages = trip.stages && trip.stages.length > 0;
+        const lastStage = hasStages ? trip.stages[trip.stages.length - 1] : null;
+        const endDate = lastStage?.stageEndDate || (trip as any).endDate || trip.startDate;
+        const endOdometer = lastStage?.stageEndOdometer || (trip as any).endOdometer || trip.startOdometer;
+
+        if (endDate && (!from || !to || (new Date(endDate) >= from && new Date(endDate) <= to))) {
+          combined.push({
+            type: 'trip',
+            sortKey: endOdometer,
+            date: endDate,
+            data: trip,
+          });
+        }
       }
     });
 
@@ -424,66 +433,21 @@ function ServiceItemContent({ reminder, vehicleId, lastOdometer }: { reminder: P
 }
 
 function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: Vehicle, allFuelLogs: ProcessedFuelLog[] }) {
-    const { getFormattedConsumption, consumptionUnit } = usePreferences();
-    
-    const tripCalculations = useMemo(() => {
-        if (!trip.endOdometer || !trip.startOdometer) {
-            return { kmTraveled: 0, fuelConsumed: 0, totalCost: 0, avgConsumptionForTrip: 0, costPerKm: 0, duration: "N/A" };
-        }
-        const kmTraveled = trip.endOdometer - trip.startOdometer;
-        if (kmTraveled <= 0) {
-            return { kmTraveled: 0, fuelConsumed: 0, totalCost: 0, avgConsumptionForTrip: 0, costPerKm: 0, duration: "N/A" };
-        }
+  const getTripSummary = (t: Trip) => {
+    if (!t.stages || t.stages.length === 0) {
+      // @ts-ignore - Support for legacy trips without stages
+      const distance = (t as any).endOdometer ? (t as any).endOdometer - t.startOdometer : 0;
+      // @ts-ignore
+      const endDate = (t as any).endDate || t.startDate;
+      return { distance: Math.max(0, distance), endDate };
+    }
+    const lastStage = t.stages[t.stages.length - 1];
+    const distance = Math.max(0, lastStage.stageEndOdometer - t.startOdometer);
+    const endDate = lastStage.stageEndDate;
+    return { distance, endDate };
+  };
 
-        const otherExpenses = (trip.expenses || []).reduce((acc, expense) => acc + expense.amount, 0);
-
-        const sortedLogs = [...allFuelLogs].sort((a, b) => a.odometer - b.odometer);
-        const logsInTrip = sortedLogs.filter(log => log.odometer > trip.startOdometer! && log.odometer < trip.endOdometer!);
-        const keyOdometerPoints = [trip.startOdometer, ...logsInTrip.map(l => l.odometer), trip.endOdometer];
-        let totalFuel = 0;
-        let fuelCost = 0;
-        const fallbackConsumption = vehicle.averageConsumptionKmPerLiter > 0 ? vehicle.averageConsumptionKmPerLiter : 1;
-        const historicAvgPrice = sortedLogs.length > 0 ? sortedLogs.reduce((acc, log) => acc + log.pricePerLiter, 0) / sortedLogs.length : 0;
-        
-        for (let i = 0; i < keyOdometerPoints.length - 1; i++) {
-            const segmentStartOdo = keyOdometerPoints[i];
-            const segmentEndOdo = keyOdometerPoints[i+1];
-            const segmentDistance = segmentEndOdo - segmentStartOdo;
-            if (segmentDistance <= 0) continue;
-            const segmentStartLog = logsInTrip.find(l => l.odometer === segmentStartOdo);
-            if (segmentStartLog && segmentStartLog.isFillUp && !segmentStartLog.missedPreviousFillUp) {
-                const logIndex = sortedLogs.findIndex(l => l.id === segmentStartLog.id);
-                if (logIndex > 0) {
-                    const prevLog = sortedLogs[logIndex - 1];
-                    const distanceSinceLastFill = segmentStartLog.odometer - prevLog.odometer;
-                    if (distanceSinceLastFill > 0 && prevLog.isFillUp) {
-                        const realConsumption = distanceSinceLastFill / segmentStartLog.liters;
-                        if (realConsumption > 0) {
-                            totalFuel += segmentDistance / realConsumption;
-                            fuelCost += (segmentDistance / realConsumption) * segmentStartLog.pricePerLiter;
-                            continue;
-                        }
-                    }
-                }
-            }
-            totalFuel += segmentDistance / fallbackConsumption;
-            fuelCost += (segmentDistance / fallbackConsumption) * historicAvgPrice;
-        }
-        
-        const totalCost = fuelCost + otherExpenses;
-        const finalAvgConsumption = kmTraveled > 0 && totalFuel > 0 ? kmTraveled / totalFuel : 0;
-        const costPerKm = kmTraveled > 0 ? totalCost / kmTraveled : 0;
-        let duration = "N/A";
-        if (trip.endDate && trip.startDate) {
-            const hours = differenceInHours(new Date(trip.endDate), new Date(trip.startDate));
-            const minutes = differenceInMinutes(new Date(trip.endDate), new Date(trip.startDate)) % 60;
-            duration = `${hours}h ${minutes}m`;
-        }
-        return { kmTraveled, fuelConsumed: totalFuel, totalCost, avgConsumptionForTrip: finalAvgConsumption, costPerKm, duration, otherExpenses };
-    }, [trip, allFuelLogs, vehicle.averageConsumptionKmPerLiter]);
-
-    const { kmTraveled, fuelConsumed, totalCost, avgConsumptionForTrip, costPerKm, duration, otherExpenses } = tripCalculations;
-    const lastOdometer = trip.endOdometer || 0;
+  const summary = getTripSummary(trip);
 
   return (
     <>
@@ -491,89 +455,22 @@ function TripItemContent({ trip, vehicle, allFuelLogs }: { trip: Trip, vehicle: 
         <div className="flex items-center gap-4 w-full">
           <Map className="h-8 w-8 flex-shrink-0 text-purple-500/80" />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold">{formatDate(trip.endDate!)} - Viaje a {trip.destination}</p>
-            <p className="text-sm text-muted-foreground truncate">{trip.tripType}</p>
+            <p className="font-semibold">{trip.tripType}: {trip.destination}</p>
+            <p className="text-sm text-muted-foreground truncate">
+              {summary.endDate ? `Finalizado el ${formatDateTime(summary.endDate)}` : `Iniciado el ${formatDateTime(trip.startDate)}`}
+            </p>
           </div>
-          <div className="text-right">
-            <p className="font-semibold">{kmTraveled.toLocaleString()} km</p>
-            <p className="text-xs text-muted-foreground">Distancia</p>
+          <div className="text-right ml-auto">
+            <p className="font-semibold">{summary.distance.toLocaleString()} km</p>
+            <p className="text-xs text-muted-foreground">Distancia Total</p>
           </div>
         </div>
       </AccordionTrigger>
       <AccordionContent className="px-6 pb-4">
-        <div className="space-y-3 pt-4 border-t pl-12">
-           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6 text-sm">
-                <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{formatCurrency(totalCost)}</p>
-                        <p className="text-xs text-muted-foreground">Costo Total Viaje</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Droplets className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{fuelConsumed.toFixed(2)} L</p>
-                        <p className="text-xs text-muted-foreground">Combustible (Est.)</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
-                    <Gauge className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{getFormattedConsumption(avgConsumptionForTrip)}</p>
-                        <p className="text-xs text-muted-foreground">Consumo ({consumptionUnit})</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-2">
-                     <Clock className="h-4 w-4 text-muted-foreground" />
-                     <div>
-                        <p className="font-medium">{duration}</p>
-                        <p className="text-xs text-muted-foreground">Duración</p>
-                     </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                        <p className="font-medium">{trip.username}</p>
-                        <p className="text-xs text-muted-foreground">Conductor</p>
-                    </div>
-                </div>
-            </div>
-             {trip.notes && (
-                <div className="pt-2 text-sm">
-                    <p className="font-medium">Notas:</p>
-                    <p className="text-muted-foreground italic">{trip.notes}</p>
-                </div>
-            )}
-            {(trip.expenses && trip.expenses.length > 0) && (
-                 <div className="pt-2 text-sm">
-                    <p className="font-medium">Otros Gastos ({formatCurrency(otherExpenses)}):</p>
-                     <ul className="text-muted-foreground list-disc pl-5 mt-1">
-                        {trip.expenses.map((expense, index) => (
-                            <li key={index} className="flex justify-between">
-                                <span>{expense.description}</span>
-                                <span>{formatCurrency(expense.amount)}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            )}
-             <div className="flex gap-2 pt-4">
-                <AddTripDialog vehicleId={trip.vehicleId} trip={trip} lastOdometer={lastOdometer}>
-                    <Button variant="outline" size="sm" className="w-full">
-                        <Edit className="h-4 w-4 mr-1" /> Ver/Editar
-                    </Button>
-                </AddTripDialog>
-                 <DeleteTripDialog vehicleId={trip.vehicleId} tripId={trip.id}>
-                    <Button variant="outline" size="sm" className="w-full text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4 mr-1" /> Eliminar
-                    </Button>
-                 </DeleteTripDialog>
-            </div>
-        </div>
+        <TripDetails trip={trip} vehicle={vehicle} allFuelLogs={allFuelLogs} />
       </AccordionContent>
     </>
-  )
+  );
 }
 
     
