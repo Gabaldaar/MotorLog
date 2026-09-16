@@ -26,6 +26,17 @@ import {
   SidebarRail,
 } from '@/components/ui/sidebar';
 import { Button } from '../ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const menuItems = [
   { href: '/dashboard', label: 'Inicio', icon: Menu },
@@ -76,9 +87,30 @@ function UserInfo() {
         <span className='font-semibold text-sidebar-foreground truncate'>{displayName}</span>
         <span className='text-[10px] text-muted-foreground truncate'>{authUser.email}</span>
       </div>
-      <Button variant="ghost" size="icon" onClick={handleSignOut} title="Cerrar sesión" className='h-8 w-8 shrink-0'>
-        <LogOut className="h-4 w-4" />
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="ghost" size="icon" title="Cerrar sesión" className='h-8 w-8 shrink-0 hover:text-destructive'>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-destructive" />
+              ¿Cerrar sesión?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas salir de tu cuenta en MotorLog?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Cerrar sesión
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
