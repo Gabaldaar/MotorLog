@@ -85,8 +85,8 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const [lastEdited, setLastEdited] = useState<LastEditedField>(null);
-  const [popoverOpen, setPopoverOpen] = useState(false)
+  const [lastEditedFields, setLastEditedFields] = useState<('totalCost' | 'liters' | 'pricePerLiter')[]>([]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [isFetchingRate, setIsFetchingRate] = useState(false);
 
 
@@ -182,27 +182,74 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
   }, [fuelLog, open, form, vehicle, isEditing]);
 
 
-  useEffect(() => {
-    const { totalCost, liters, pricePerLiter } = watchedValues;
-    if (!lastEdited) return;
+  const handleFuelFieldChange = (field: 'totalCost' | 'liters' | 'pricePerLiter', rawValue: string) => {
+    setValue(field, rawValue, { shouldValidate: true });
 
-    const cost = parseCurrency(totalCost);
-    const ltrs = parseCurrency(liters);
-    const price = parseCurrency(pricePerLiter);
-
-    const format = (num: number) => num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-    if (lastEdited !== 'pricePerLiter' && cost > 0 && ltrs > 0) {
-      const newPrice = cost / ltrs;
-      setValue('pricePerLiter', format(newPrice), { shouldValidate: true });
-    } else if (lastEdited !== 'liters' && cost > 0 && price > 0) {
-      const newLiters = cost / price;
-      setValue('liters', format(newLiters), { shouldValidate: true });
-    } else if (lastEdited !== 'totalCost' && ltrs > 0 && price > 0) {
-      const newCost = ltrs * price;
-      setValue('totalCost', format(newCost), { shouldValidate: true });
+    const numValue = parseCurrency(rawValue);
+    if (!rawValue || numValue <= 0) {
+      setLastEditedFields(prev => prev.filter(f => f !== field));
+      return;
     }
-  }, [watchedValues.totalCost, watchedValues.liters, watchedValues.pricePerLiter, lastEdited, setValue]);
+
+    const updatedHistory = [field, ...lastEditedFields.filter(f => f !== field)].slice(0, 2);
+    setLastEditedFields(updatedHistory);
+
+    const format = (num: number) =>
+      num.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const currentValues = {
+      totalCost: parseCurrency(field === 'totalCost' ? rawValue : form.getValues('totalCost')),
+      liters: parseCurrency(field === 'liters' ? rawValue : form.getValues('liters')),
+      pricePerLiter: parseCurrency(field === 'pricePerLiter' ? rawValue : form.getValues('pricePerLiter')),
+    };
+
+    const { totalCost, liters, pricePerLiter } = currentValues;
+
+    // 1) When editing totalCost or liters:
+    // If the active pair is (totalCost, liters), calculate pricePerLiter
+    if (
+      (field === 'totalCost' && updatedHistory.includes('liters') && liters > 0) ||
+      (field === 'liters' && updatedHistory.includes('totalCost') && totalCost > 0) ||
+      (field === 'totalCost' && pricePerLiter === 0 && liters > 0) ||
+      (field === 'liters' && pricePerLiter === 0 && totalCost > 0)
+    ) {
+      if (liters > 0 && totalCost > 0) {
+        const calculated = totalCost / liters;
+        setValue('pricePerLiter', format(calculated), { shouldValidate: true });
+      }
+      return;
+    }
+
+    // 2) When editing totalCost or pricePerLiter:
+    // If the active pair is (totalCost, pricePerLiter), calculate liters
+    if (
+      (field === 'totalCost' && updatedHistory.includes('pricePerLiter') && pricePerLiter > 0) ||
+      (field === 'pricePerLiter' && updatedHistory.includes('totalCost') && totalCost > 0) ||
+      (field === 'totalCost' && liters === 0 && pricePerLiter > 0) ||
+      (field === 'pricePerLiter' && liters === 0 && totalCost > 0)
+    ) {
+      if (pricePerLiter > 0 && totalCost > 0) {
+        const calculated = totalCost / pricePerLiter;
+        setValue('liters', format(calculated), { shouldValidate: true });
+      }
+      return;
+    }
+
+    // 3) When editing liters or pricePerLiter:
+    // If the active pair is (liters, pricePerLiter), calculate totalCost
+    if (
+      (field === 'liters' && updatedHistory.includes('pricePerLiter') && pricePerLiter > 0) ||
+      (field === 'pricePerLiter' && updatedHistory.includes('liters') && liters > 0) ||
+      (field === 'liters' && totalCost === 0 && pricePerLiter > 0) ||
+      (field === 'pricePerLiter' && totalCost === 0 && liters > 0)
+    ) {
+      if (liters > 0 && pricePerLiter > 0) {
+        const calculated = liters * pricePerLiter;
+        setValue('totalCost', format(calculated), { shouldValidate: true });
+      }
+      return;
+    }
+  };
 
 
   async function onSubmit(values: FormValues) {
@@ -404,7 +451,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                         <FormItem>
                             <FormLabel>Costo Total (ARS)</FormLabel>
                             <FormControl>
-                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('totalCost'); }}/>
+                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => handleFuelFieldChange('totalCost', e.target.value)}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -417,7 +464,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                         <FormItem>
                             <FormLabel>$/Litro (ARS)</FormLabel>
                             <FormControl>
-                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('pricePerLiter'); }}/>
+                            <Input type="text" placeholder="$" {...field} value={field.value ?? ''} onChange={(e) => handleFuelFieldChange('pricePerLiter', e.target.value)}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
@@ -430,7 +477,7 @@ export default function AddFuelLogDialog({ vehicleId, lastLog, fuelLog, vehicle,
                         <FormItem>
                             <FormLabel>Litros</FormLabel>
                             <FormControl>
-                            <Input type="text" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => { field.onChange(e); setLastEdited('liters'); }}/>
+                            <Input type="text" placeholder="L" {...field} value={field.value ?? ''} onChange={(e) => handleFuelFieldChange('liters', e.target.value)}/>
                             </FormControl>
                             <FormMessage />
                         </FormItem>
